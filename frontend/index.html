@@ -1,0 +1,900 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NotFinancialAdvice</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.45.1/dist/apexcharts.min.js"></script>
+  <link rel="stylesheet" href="/assets/styles.css?v=20260308a" />
+</head>
+<body>
+  <div class="app">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">
+          <i class="fas fa-hand-holding-dollar"></i>
+          <span>NotFinancialAdvice</span>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="#" class="nav-item active" data-tab="dashboard">
+          <i class="fas fa-th-large"></i>
+          <span>Dashboard</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="simulation">
+          <i class="fas fa-chart-line"></i>
+          <span>Simulation</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="testlab">
+          <i class="fas fa-flask"></i>
+          <span>Test Lab</span>
+        </a>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      
+      <!-- ==================== UPLOAD OVERLAY ==================== -->
+      <div id="uploadOverlay" class="upload-overlay active">
+        <div class="upload-modal">
+          <div class="upload-modal-header">
+            <i class="fas fa-cloud-upload-alt"></i>
+            <h2>Upload Portfolio Data</h2>
+            <p>Upload your Robinhood CSV exports to analyze your portfolios</p>
+          </div>
+          
+          <div class="upload-cards">
+            <!-- Portfolio 1 Upload -->
+            <div class="upload-card" id="uploadCard1">
+              <div class="upload-card-header">
+                <span class="upload-card-title">Portfolio 1</span>
+              </div>
+              <input id="portfolioName1" type="text" class="portfolio-name-input" placeholder="Portfolio 1" value="Portfolio 1" />
+              <p class="upload-card-status" id="upload1Status">No file selected</p>
+              <input id="csvUpload1" type="file" accept=".csv" hidden />
+              <div class="upload-card-buttons">
+                <button id="uploadBtn1" class="btn-upload-card">
+                  <i class="fas fa-folder-open"></i> Choose CSV
+                </button>
+                <button id="useSampleBtn1" class="btn-sample-small">
+                  <i class="fas fa-flask"></i> Use Sample
+                </button>
+              </div>
+            </div>
+            <!-- Portfolio 2 Upload (Optional) -->
+            <div class="upload-card" id="uploadCard2">
+              <div class="upload-card-header">
+                <span class="upload-card-title">Portfolio 2</span>
+                <span class="upload-card-optional">(Optional)</span>
+              </div>
+              <input id="portfolioName2" type="text" class="portfolio-name-input" placeholder="Portfolio 2" value="Portfolio 2" />
+              <p class="upload-card-status optional-text" id="upload2Status">No file selected</p>
+              <input id="csvUpload2" type="file" accept=".csv" hidden />
+              <div class="upload-card-buttons">
+                <button id="uploadBtn2" class="btn-upload-card">
+                  <i class="fas fa-folder-open"></i> Choose CSV
+                </button>
+                <button id="useSampleBtn2" class="btn-sample-small">
+                  <i class="fas fa-flask"></i> Use Sample
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <div class="sample-info">
+            <i class="fas fa-info-circle"></i>
+            <span>Sample: $300/mo DCA into 70% VOO, 10% QQQ, 10% SLV, 5% GLD, 3% CVNA, 2% META</span>
+          </div>
+          
+          <div class="upload-modal-actions">
+            <button id="startAnalysisBtn" class="btn-primary btn-large" disabled>
+              <i class="fas fa-rocket"></i> Start Analysis
+            </button>
+            <p class="upload-hint">Upload at least Portfolio 1 to begin</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== DASHBOARD TAB ==================== -->
+      <div id="tab-dashboard" class="tab-content active">
+        <!-- Top Bar -->
+        <header class="topbar">
+          <div class="topbar-left">
+            <h1>Dashboard</h1>
+            <div class="breadcrumb">
+              <span id="activeYearsPill" class="badge">5Y</span>
+              <span id="sampleBadge" class="sample-badge" style="display: none;">
+                <i class="fas fa-flask"></i> Sample Portfolio
+              </span>
+            </div>
+          </div>
+          <div class="topbar-right">
+            <div class="timeframe-selector">
+              <label>Timeframe</label>
+              <div class="year-input-group">
+                <input type="number" id="years" min="1" max="10" value="5" />
+                <span class="year-suffix">Years</span>
+              </div>
+            </div>
+            <button id="changeFilesBtn" class="btn-secondary">
+              <i class="fas fa-file-csv"></i> Change Files
+            </button>
+            <button id="runBtn" class="btn-primary">
+              <i class="fas fa-play"></i> Run Analysis
+            </button>
+          </div>
+        </header>
+
+        <!-- Progress Bar for CSV Loading -->
+        <div id="progressBar" class="progress-bar-container">
+          <div class="progress-bar-track">
+            <div class="progress-bar-fill"></div>
+          </div>
+          <span class="progress-bar-text">0%</span>
+        </div>
+
+        <!-- Status -->
+        <div id="status" class="status-bar"></div>
+
+        <!-- Portfolio Tabs -->
+        <div class="portfolio-tabs" id="portfolioTabs">
+          <button class="portfolio-tab active" data-portfolio="1">
+            <i class="fas fa-briefcase"></i> Portfolio 1
+            <span class="portfolio-file" id="portfolio1File">—</span>
+          </button>
+          <button class="portfolio-tab" data-portfolio="2" id="portfolio2Tab" style="display: none;">
+            <i class="fas fa-briefcase"></i> Portfolio 2
+            <span class="portfolio-file" id="portfolio2File">—</span>
+          </button>
+        </div>
+
+        <!-- Single Portfolio Content (shown when only 1 portfolio) -->
+        <div id="portfolio1Content" class="portfolio-content active">
+          <!-- Metrics Cards - Row 1 -->
+          <section class="metrics-grid">
+            <div class="metric-card" data-tooltip="Your portfolio's yearly growth rate. If you invested $10,000 and got 12% annual return, you'd have $11,200 after one year.">
+              <div class="metric-icon green">
+                <i class="fas fa-arrow-trend-up"></i>
+              </div>
+              <div class="metric-content">
+                <span class="metric-label">Annual Return</span>
+                <span class="metric-value" id="metricReturn1">—</span>
+              </div>
+            </div>
+            <div class="metric-card" data-tooltip="How much your portfolio swings up and down. Higher = more unpredictable. Example: 20% volatility means your returns typically vary by ±20% from the average.">
+              <div class="metric-icon orange">
+                <i class="fas fa-chart-bar"></i>
+              </div>
+              <div class="metric-content">
+                <span class="metric-label">Volatility (Risk)</span>
+                <span class="metric-value" id="metricVolatility1">—</span>
+              </div>
+            </div>
+            <div class="metric-card" data-tooltip="Reward per unit of 'bad' risk (only counting drops). Higher is better. Formula: (Return − Risk-free rate) ÷ Downside Vol. Above 2 is excellent.">
+              <div class="metric-icon cyan">
+                <i class="fas fa-shield-halved"></i>
+              </div>
+              <div class="metric-content">
+                <span class="metric-label">Sortino Ratio</span>
+                <span class="metric-value" id="metricSortino1">—</span>
+              </div>
+            </div>
+            <div class="metric-card" data-tooltip="Reward per unit of total risk. Higher = better risk-adjusted returns. Formula: (Return − Risk-free rate) ÷ Volatility. Above 1 is good, above 2 is great.">
+              <div class="metric-icon blue">
+                <i class="fas fa-balance-scale"></i>
+              </div>
+              <div class="metric-content">
+                <span class="metric-label">Sharpe Ratio</span>
+                <span class="metric-value" id="metricSharpe1">—</span>
+              </div>
+            </div>
+          </section>
+          
+          <!-- Metrics Cards - Row 2 -->
+          <section class="metrics-grid">
+            <div class="metric-card" data-tooltip="The biggest peak-to-trough drop your portfolio experienced. Example: -35% means at worst, $10,000 fell to $6,500 before recovering.">
+              <div class="metric-icon red">
+                <i class="fas fa-arrow-down"></i>
+              </div>
+              <div class="metric-content">
+                <span class="metric-label">Max Drawdown</span>
+                <span class="metric-value" id="metricMaxDrawdown1">—</span>
+              </div>
+            </div>
+            <div class="metric-card" data-tooltip="How much your portfolio moves with the S&P 500 market. Beta=1 moves like the market. Beta=1.5 is 50% more volatile; Beta=0.5 is 50% less.">
+              <div class="metric-icon purple">
+                <i class="fas fa-wave-square"></i>
+              </div>
+              <div class="metric-content">
+                <span class="metric-label">Beta (vs SPY)</span>
+                <span class="metric-value" id="metricBeta1">—</span>
+              </div>
+            </div>
+            <div class="metric-card" data-tooltip="Value at Risk: The most you'd likely lose in a bad month (95% confidence). Example: 8% VaR means in 19 out of 20 months, you won't lose more than 8%.">
+              <div class="metric-icon pink">
+                <i class="fas fa-triangle-exclamation"></i>
+              </div>
+              <div class="metric-content">
+                <span class="metric-label">VaR 95% (Monthly)</span>
+                <span class="metric-value" id="metricVaR1">—</span>
+              </div>
+            </div>
+            <div class="metric-card" data-tooltip="Volatility of only the negative returns. Unlike regular volatility, this ignores gains and focuses purely on how severe your losses tend to be.">
+              <div class="metric-icon teal">
+                <i class="fas fa-arrow-down-short-wide"></i>
+              </div>
+              <div class="metric-content">
+                <span class="metric-label">Downside Volatility</span>
+                <span class="metric-value" id="metricDownside1">—</span>
+              </div>
+            </div>
+          </section>
+
+          <!-- Charts Row 1 -->
+          <section class="charts-row two-col">
+            <div class="card">
+              <div class="card-header">
+                <h2><i class="fas fa-chart-area"></i> Portfolio Performance <span class="title-spinner" id="spinnerValue1"></span></h2>
+                <div class="card-actions">
+                  <div class="ticker-input-group">
+                    <input id="benchmarkInput1" placeholder="Add benchmark (e.g. DIA)" />
+                    <button id="addBenchmarkBtn1" class="btn-icon"><i class="fas fa-plus"></i></button>
+                  </div>
+                </div>
+              </div>
+              <div id="benchmarkTags1" class="tags-container"></div>
+              <div id="valueChart1" class="chart-area"></div>
+            </div>
+            <div class="card">
+              <div class="card-header">
+                <h2><i class="fas fa-chart-pie"></i> Holdings Allocation <span class="title-spinner" id="spinnerHoldings1"></span></h2>
+              </div>
+              <div id="holdingsChart1" class="chart-donut"></div>
+            </div>
+          </section>
+
+          <!-- Benchmark Table -->
+          <section class="charts-row">
+            <div class="card">
+              <div class="card-header">
+                <h2><i class="fas fa-table"></i> Benchmark Comparison</h2>
+              </div>
+              <div id="benchmarkTable1" class="data-table"></div>
+            </div>
+          </section>
+
+          <!-- Risk-Return Scatter -->
+          <section class="charts-row">
+            <div class="card">
+              <div class="card-header">
+                <h2><i class="fas fa-crosshairs"></i> Risk-Return Analysis (Efficient Frontier) <span class="title-spinner" id="spinnerScatter1"></span></h2>
+                <div class="card-actions">
+                  <div class="ticker-input-group">
+                    <input id="scatterInput1" placeholder="Add ticker (e.g. TSLA)" />
+                    <button id="addScatterBtn1" class="btn-icon"><i class="fas fa-plus"></i></button>
+                  </div>
+                </div>
+              </div>
+              <div id="scatterTags1" class="tags-container"></div>
+              <div class="scatter-layout">
+                <div id="scatterChart1" class="chart-scatter"></div>
+                <div class="scatter-table-wrap">
+                  <div id="scatterTable1" class="data-table"></div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <!-- Portfolio 2 Content -->
+        <div id="portfolio2Content" class="portfolio-content">
+          <!-- Metrics Cards - Row 1 -->
+          <section class="metrics-grid">
+            <div class="metric-card" data-tooltip="Your portfolio's yearly growth rate. If you invested $10,000 and got 12% annual return, you'd have $11,200 after one year.">
+              <div class="metric-icon green">
+                <i class="fas fa-arrow-trend-up"></i>
+              </div>
+              <div class="metric-content">
+                <span class="metric-label">Annual Return</span>
+                <span class="metric-value" id="metricReturn2">—</span>
+              </div>
+            </div>
+            <div class="metric-card" data-tooltip="How much your portfolio swings up and down. Higher = more unpredictable. Example: 20% volatility means your returns typically vary by ±20% from the average.">
+              <div class="metric-icon orange">
+                <i class="fas fa-chart-bar"></i>
+              </div>
+              <div class="metric-content">
+                <span class="metric-label">Volatility (Risk)</span>
+                <span class="metric-value" id="metricVolatility2">—</span>
+              </div>
+            </div>
+            <div class="metric-card" data-tooltip="Reward per unit of 'bad' risk (only counting drops). Higher is better. Formula: (Return − Risk-free rate) ÷ Downside Vol. Above 2 is excellent.">
+              <div class="metric-icon cyan">
+                <i class="fas fa-shield-halved"></i>
+              </div>
+              <div class="metric-content">
+                <span class="metric-label">Sortino Ratio</span>
+                <span class="metric-value" id="metricSortino2">—</span>
+              </div>
+            </div>
+            <div class="metric-card" data-tooltip="Reward per unit of total risk. Higher = better risk-adjusted returns. Formula: (Return − Risk-free rate) ÷ Volatility. Above 1 is good, above 2 is great.">
+              <div class="metric-icon blue">
+                <i class="fas fa-balance-scale"></i>
+              </div>
+              <div class="metric-content">
+                <span class="metric-label">Sharpe Ratio</span>
+                <span class="metric-value" id="metricSharpe2">—</span>
+              </div>
+            </div>
+          </section>
+          
+          <!-- Metrics Cards - Row 2 -->
+          <section class="metrics-grid">
+            <div class="metric-card" data-tooltip="The biggest peak-to-trough drop your portfolio experienced. Example: -35% means at worst, $10,000 fell to $6,500 before recovering.">
+              <div class="metric-icon red">
+                <i class="fas fa-arrow-down"></i>
+              </div>
+              <div class="metric-content">
+                <span class="metric-label">Max Drawdown</span>
+                <span class="metric-value" id="metricMaxDrawdown2">—</span>
+              </div>
+            </div>
+            <div class="metric-card" data-tooltip="How much your portfolio moves with the S&P 500 market. Beta=1 moves like the market. Beta=1.5 is 50% more volatile; Beta=0.5 is 50% less.">
+              <div class="metric-icon purple">
+                <i class="fas fa-wave-square"></i>
+              </div>
+              <div class="metric-content">
+                <span class="metric-label">Beta (vs SPY)</span>
+                <span class="metric-value" id="metricBeta2">—</span>
+              </div>
+            </div>
+            <div class="metric-card" data-tooltip="Value at Risk: The most you'd likely lose in a bad month (95% confidence). Example: 8% VaR means in 19 out of 20 months, you won't lose more than 8%.">
+              <div class="metric-icon pink">
+                <i class="fas fa-triangle-exclamation"></i>
+              </div>
+              <div class="metric-content">
+                <span class="metric-label">VaR 95% (Monthly)</span>
+                <span class="metric-value" id="metricVaR2">—</span>
+              </div>
+            </div>
+            <div class="metric-card" data-tooltip="Volatility of only the negative returns. Unlike regular volatility, this ignores gains and focuses purely on how severe your losses tend to be.">
+              <div class="metric-icon teal">
+                <i class="fas fa-arrow-down-short-wide"></i>
+              </div>
+              <div class="metric-content">
+                <span class="metric-label">Downside Volatility</span>
+                <span class="metric-value" id="metricDownside2">—</span>
+              </div>
+            </div>
+          </section>
+
+          <!-- Charts Row 1 -->
+          <section class="charts-row two-col">
+            <div class="card">
+              <div class="card-header">
+                <h2><i class="fas fa-chart-area"></i> Portfolio Performance <span class="title-spinner" id="spinnerValue2"></span></h2>
+                <div class="card-actions">
+                  <div class="ticker-input-group">
+                    <input id="benchmarkInput2" placeholder="Add benchmark (e.g. DIA)" />
+                    <button id="addBenchmarkBtn2" class="btn-icon"><i class="fas fa-plus"></i></button>
+                  </div>
+                </div>
+              </div>
+              <div id="benchmarkTags2" class="tags-container"></div>
+              <div id="valueChart2" class="chart-area"></div>
+            </div>
+            <div class="card">
+              <div class="card-header">
+                <h2><i class="fas fa-chart-pie"></i> Holdings Allocation <span class="title-spinner" id="spinnerHoldings2"></span></h2>
+              </div>
+              <div id="holdingsChart2" class="chart-donut"></div>
+            </div>
+          </section>
+
+          <!-- Benchmark Table -->
+          <section class="charts-row">
+            <div class="card">
+              <div class="card-header">
+                <h2><i class="fas fa-table"></i> Benchmark Comparison</h2>
+              </div>
+              <div id="benchmarkTable2" class="data-table"></div>
+            </div>
+          </section>
+
+          <!-- Risk-Return Scatter -->
+          <section class="charts-row">
+            <div class="card">
+              <div class="card-header">
+                <h2><i class="fas fa-crosshairs"></i> Risk-Return Analysis (Efficient Frontier) <span class="title-spinner" id="spinnerScatter2"></span></h2>
+                <div class="card-actions">
+                  <div class="ticker-input-group">
+                    <input id="scatterInput2" placeholder="Add ticker (e.g. TSLA)" />
+                    <button id="addScatterBtn2" class="btn-icon"><i class="fas fa-plus"></i></button>
+                  </div>
+                </div>
+              </div>
+              <div id="scatterTags2" class="tags-container"></div>
+              <div class="scatter-layout">
+                <div id="scatterChart2" class="chart-scatter"></div>
+                <div class="scatter-table-wrap">
+                  <div id="scatterTable2" class="data-table"></div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <!-- Dual Portfolio Content (shown when 2 portfolios uploaded) -->
+        <div id="dualContent" class="portfolio-content">
+          <!-- Portfolio Legend -->
+          <div class="dual-legend">
+            <div class="dual-legend-item p1">
+              <span class="dual-legend-dot"></span>
+              <span class="dual-legend-name" id="dualLegendName1">Portfolio 1</span>
+            </div>
+            <div class="dual-legend-item p2">
+              <span class="dual-legend-dot"></span>
+              <span class="dual-legend-name" id="dualLegendName2">Portfolio 2</span>
+            </div>
+          </div>
+          <!-- Dual Metrics Cards - Row 1 -->
+          <section class="metrics-grid">
+            <div class="metric-card dual-metric" data-tooltip="Your portfolio's yearly growth rate. If you invested $10,000 and got 12% annual return, you'd have $11,200 after one year.">
+              <div class="metric-icon green">
+                <i class="fas fa-arrow-trend-up"></i>
+              </div>
+              <div class="metric-content">
+                <span class="metric-label">Annual Return</span>
+                <div class="metric-dual-values">
+                  <span class="metric-value p1" id="dualReturn1">—</span>
+                  <span class="metric-value p2" id="dualReturn2">—</span>
+                </div>
+              </div>
+            </div>
+            <div class="metric-card dual-metric" data-tooltip="How much your portfolio swings up and down. Higher = more unpredictable. Example: 20% volatility means your returns typically vary by ±20% from the average.">
+              <div class="metric-icon orange">
+                <i class="fas fa-chart-bar"></i>
+              </div>
+              <div class="metric-content">
+                <span class="metric-label">Volatility (Risk)</span>
+                <div class="metric-dual-values">
+                  <span class="metric-value p1" id="dualVolatility1">—</span>
+                  <span class="metric-value p2" id="dualVolatility2">—</span>
+                </div>
+              </div>
+            </div>
+            <div class="metric-card dual-metric" data-tooltip="Reward per unit of 'bad' risk (only counting drops). Higher is better. Formula: (Return − Risk-free rate) ÷ Downside Vol. Above 2 is excellent.">
+              <div class="metric-icon cyan">
+                <i class="fas fa-shield-halved"></i>
+              </div>
+              <div class="metric-content">
+                <span class="metric-label">Sortino Ratio</span>
+                <div class="metric-dual-values">
+                  <span class="metric-value p1" id="dualSortino1">—</span>
+                  <span class="metric-value p2" id="dualSortino2">—</span>
+                </div>
+              </div>
+            </div>
+            <div class="metric-card dual-metric" data-tooltip="Reward per unit of total risk. Higher = better risk-adjusted returns. Formula: (Return − Risk-free rate) ÷ Volatility. Above 1 is good, above 2 is great.">
+              <div class="metric-icon blue">
+                <i class="fas fa-balance-scale"></i>
+              </div>
+              <div class="metric-content">
+                <span class="metric-label">Sharpe Ratio</span>
+                <div class="metric-dual-values">
+                  <span class="metric-value p1" id="dualSharpe1">—</span>
+                  <span class="metric-value p2" id="dualSharpe2">—</span>
+                </div>
+              </div>
+            </div>
+          </section>
+          
+          <!-- Dual Metrics Cards - Row 2 -->
+          <section class="metrics-grid">
+            <div class="metric-card dual-metric" data-tooltip="The biggest peak-to-trough drop your portfolio experienced. Example: -35% means at worst, $10,000 fell to $6,500 before recovering.">
+              <div class="metric-icon red">
+                <i class="fas fa-arrow-down"></i>
+              </div>
+              <div class="metric-content">
+                <span class="metric-label">Max Drawdown</span>
+                <div class="metric-dual-values">
+                  <span class="metric-value p1" id="dualMaxDD1">—</span>
+                  <span class="metric-value p2" id="dualMaxDD2">—</span>
+                </div>
+              </div>
+            </div>
+            <div class="metric-card dual-metric" data-tooltip="How much your portfolio moves with the S&P 500 market. Beta=1 moves like the market. Beta=1.5 is 50% more volatile; Beta=0.5 is 50% less.">
+              <div class="metric-icon purple">
+                <i class="fas fa-wave-square"></i>
+              </div>
+              <div class="metric-content">
+                <span class="metric-label">Beta (vs SPY)</span>
+                <div class="metric-dual-values">
+                  <span class="metric-value p1" id="dualBeta1">—</span>
+                  <span class="metric-value p2" id="dualBeta2">—</span>
+                </div>
+              </div>
+            </div>
+            <div class="metric-card dual-metric" data-tooltip="Value at Risk: The most you'd likely lose in a bad month (95% confidence). Example: 8% VaR means in 19 out of 20 months, you won't lose more than 8%.">
+              <div class="metric-icon pink">
+                <i class="fas fa-triangle-exclamation"></i>
+              </div>
+              <div class="metric-content">
+                <span class="metric-label">VaR 95% (Monthly)</span>
+                <div class="metric-dual-values">
+                  <span class="metric-value p1" id="dualVaR1">—</span>
+                  <span class="metric-value p2" id="dualVaR2">—</span>
+                </div>
+              </div>
+            </div>
+            <div class="metric-card dual-metric" data-tooltip="Volatility of only the negative returns. Unlike regular volatility, this ignores gains and focuses purely on how severe your losses tend to be.">
+              <div class="metric-icon teal">
+                <i class="fas fa-arrow-down-short-wide"></i>
+              </div>
+              <div class="metric-content">
+                <span class="metric-label">Downside Volatility</span>
+                <div class="metric-dual-values">
+                  <span class="metric-value p1" id="dualDownside1">—</span>
+                  <span class="metric-value p2" id="dualDownside2">—</span>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Combined Performance Chart & Holdings -->
+          <section class="charts-row two-col">
+            <div class="card">
+              <div class="card-header">
+                <h2><i class="fas fa-chart-area"></i> Portfolio Performance <span class="title-spinner" id="spinnerDualValue"></span></h2>
+                <div class="card-actions">
+                  <div class="ticker-input-group">
+                    <input id="dualBenchmarkInput" placeholder="Add benchmark (e.g. DIA)" />
+                    <button id="addDualBenchmarkBtn" class="btn-icon"><i class="fas fa-plus"></i></button>
+                  </div>
+                </div>
+              </div>
+              <div id="dualBenchmarkTags" class="tags-container"></div>
+              <p class="benchmark-note"><i class="fas fa-info-circle"></i> Benchmarks simulate investing P1's cash flows</p>
+              <div id="dualValueChart" class="chart-area"></div>
+            </div>
+            <div class="card">
+              <div class="card-header">
+                <h2><i class="fas fa-chart-pie"></i> Holdings Allocation <span class="title-spinner" id="spinnerDualHoldings"></span></h2>
+              </div>
+              <div class="dual-holdings-container">
+                <div class="dual-holding">
+                  <div class="dual-holding-label p1" id="dualHoldingsLabel1">P1</div>
+                  <div id="dualHoldingsChart1" class="chart-donut-small"></div>
+                </div>
+                <div class="dual-holding">
+                  <div class="dual-holding-label p2" id="dualHoldingsLabel2">P2</div>
+                  <div id="dualHoldingsChart2" class="chart-donut-small"></div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Benchmark Table -->
+          <section class="charts-row">
+            <div class="card">
+              <div class="card-header">
+                <h2><i class="fas fa-table"></i> Benchmark Comparison</h2>
+              </div>
+              <div id="dualBenchmarkTable" class="data-table"></div>
+            </div>
+          </section>
+
+          <!-- Risk-Return Scatter -->
+          <section class="charts-row">
+            <div class="card">
+              <div class="card-header">
+                <h2><i class="fas fa-crosshairs"></i> Risk-Return Analysis (Efficient Frontier) <span class="title-spinner" id="spinnerDualScatter"></span></h2>
+                <div class="card-actions">
+                  <div class="ticker-input-group">
+                    <input id="dualScatterInput" placeholder="Add ticker (e.g. TSLA)" />
+                    <button id="addDualScatterBtn" class="btn-icon"><i class="fas fa-plus"></i></button>
+                  </div>
+                </div>
+              </div>
+              <div id="dualScatterTags" class="tags-container"></div>
+              <div class="scatter-layout">
+                <div id="dualScatterChart" class="chart-scatter"></div>
+                <div class="scatter-table-wrap">
+                  <div id="dualScatterTable" class="data-table"></div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <!-- Hidden legacy elements for JS compatibility -->
+        <div id="portfolioMetrics" style="display:none;"></div>
+      </div>
+
+      <!-- ==================== SIMULATION TAB ==================== -->
+      <div id="tab-simulation" class="tab-content">
+        <header class="topbar">
+          <div class="topbar-left">
+            <h1><i class="fas fa-chart-line"></i> Monte Carlo Simulation</h1>
+            <p class="topbar-subtitle">Simulate your portfolio's future using Geometric Brownian Motion</p>
+          </div>
+          <div class="topbar-right">
+            <div class="portfolio-selector">
+              <label>Simulate</label>
+              <select id="simPortfolioSelect">
+                <option value="1">Portfolio 1</option>
+                <option value="2" id="simPortfolio2Option" disabled>Portfolio 2</option>
+              </select>
+            </div>
+            <button id="runSimBtn" class="btn-primary">
+              <i class="fas fa-play"></i> Run Simulation
+            </button>
+          </div>
+        </header>
+
+        <div id="simStatus" class="status-bar"></div>
+
+        <!-- GBM Parameters Card -->
+        <section class="sim-section">
+          <div class="card">
+            <div class="card-header">
+              <h2><i class="fas fa-cog"></i> GBM Parameters (from 5-year history)</h2>
+              <span class="sim-portfolio-badge" id="simPortfolioBadge">Portfolio 1</span>
+            </div>
+            <div class="metrics-grid sim-metrics-grid">
+              <div class="metric-card" data-tooltip="Expected annual return (drift) estimated from weighted historical returns of your holdings.">
+                <div class="metric-icon blue"><i class="fas fa-chart-line"></i></div>
+                <div class="metric-content">
+                  <span class="metric-label">Annual Drift (μ)</span>
+                  <span class="metric-value" id="simMuAnnual">—</span>
+                </div>
+              </div>
+              <div class="metric-card" data-tooltip="Annualized volatility (standard deviation) of your portfolio's historical returns.">
+                <div class="metric-icon purple"><i class="fas fa-wave-square"></i></div>
+                <div class="metric-content">
+                  <span class="metric-label">Annual Volatility (σ)</span>
+                  <span class="metric-value" id="simSigmaAnnual">—</span>
+                </div>
+              </div>
+              <div class="metric-card" data-tooltip="Daily expected return used in the GBM simulation. Annual drift ÷ 252 trading days.">
+                <div class="metric-icon cyan"><i class="fas fa-calendar-day"></i></div>
+                <div class="metric-content">
+                  <span class="metric-label">Daily Drift (μ)</span>
+                  <span class="metric-value" id="simMuDaily">—</span>
+                </div>
+              </div>
+              <div class="metric-card" data-tooltip="Daily volatility used in simulation. Annual volatility ÷ √252.">
+                <div class="metric-icon green"><i class="fas fa-chart-bar"></i></div>
+                <div class="metric-content">
+                  <span class="metric-label">Daily Volatility (σ)</span>
+                  <span class="metric-value" id="simSigmaDaily">—</span>
+                </div>
+              </div>
+              <div class="metric-card" data-tooltip="Number of historical trading days used to estimate drift and volatility.">
+                <div class="metric-icon gray"><i class="fas fa-history"></i></div>
+                <div class="metric-content">
+                  <span class="metric-label">History Days</span>
+                  <span class="metric-value" id="simHistoryDays">—</span>
+                </div>
+              </div>
+              <div class="metric-card" data-tooltip="Number of holdings in your portfolio used for weighted return calculation.">
+                <div class="metric-icon gray"><i class="fas fa-layer-group"></i></div>
+                <div class="metric-content">
+                  <span class="metric-label">Holdings Used</span>
+                  <span class="metric-value" id="simNumHoldings">—</span>
+                </div>
+              </div>
+              <div class="metric-card" data-tooltip="Current market value of your portfolio - the starting point for simulation.">
+                <div class="metric-icon green"><i class="fas fa-wallet"></i></div>
+                <div class="metric-content">
+                  <span class="metric-label">Current Value</span>
+                  <span class="metric-value" id="simCurrentValue">—</span>
+                </div>
+              </div>
+              <div class="metric-card" data-tooltip="Log returns are assumed to follow a Normal (Gaussian) distribution. This is the standard GBM assumption.">
+                <div class="metric-icon orange"><i class="fas fa-random"></i></div>
+                <div class="metric-content">
+                  <span class="metric-label">Distribution</span>
+                  <span class="metric-value" id="simDistribution">Z ~ N(0,1)</span>
+                </div>
+              </div>
+            </div>
+            <!-- Formula section -->
+            <div class="sim-formula-bar">
+              <span class="sim-formula-label">Model</span>
+              <span class="sim-formula-value" title="Geometric Brownian Motion: Projects future prices using historical drift (μ) and volatility (σ). The -½σ² term is the Itô correction ensuring E[S_t] = S_0·e^(μt).">
+                S<sub>t+1</sub> = S<sub>t</sub> · exp(μ − ½σ² + σ·Z)
+              </span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Simulation Chart -->
+        <section class="sim-section">
+          <div class="card">
+            <div class="card-header">
+              <h2><i class="fas fa-wave-square"></i> 5-Year Projection</h2>
+            </div>
+            <div class="chart-wrapper" style="position:relative;">
+              <div id="spinnerSimChart" class="spinner"></div>
+              <div id="simChart" class="chart-container" style="min-height:400px;"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Final Values Summary -->
+        <section class="sim-section">
+          <div class="card">
+            <div class="card-header">
+              <h2><i class="fas fa-flag-checkered"></i> Projected Values After 5 Years</h2>
+            </div>
+            <div class="metrics-grid sim-results-metrics">
+              <!-- Row 1: Mean, 95th Percentile, Best Case -->
+              <div class="metric-card" data-tooltip="Average final portfolio value across all 300 simulation paths.">
+                <div class="metric-icon blue"><i class="fas fa-calculator"></i></div>
+                <div class="metric-content">
+                  <span class="metric-label">Mean</span>
+                  <span class="metric-value" id="simFinalMean">—</span>
+                </div>
+              </div>
+              <div class="metric-card" data-tooltip="95% of simulations ended below this value. Optimistic but plausible outcome.">
+                <div class="metric-icon green"><i class="fas fa-arrow-up"></i></div>
+                <div class="metric-content">
+                  <span class="metric-label">95th Percentile</span>
+                  <span class="metric-value" id="simFinal95">—</span>
+                </div>
+              </div>
+              <div class="metric-card" data-tooltip="Highest final value achieved in any simulation path.">
+                <div class="metric-icon cyan"><i class="fas fa-trophy"></i></div>
+                <div class="metric-content">
+                  <span class="metric-label">Best Case</span>
+                  <span class="metric-value" id="simFinalMax">—</span>
+                </div>
+              </div>
+              <!-- Row 2: Median, 5th Percentile, Worst Case -->
+              <div class="metric-card" data-tooltip="Middle value - 50% of simulations ended above and 50% below this.">
+                <div class="metric-icon purple"><i class="fas fa-percentage"></i></div>
+                <div class="metric-content">
+                  <span class="metric-label">Median</span>
+                  <span class="metric-value" id="simFinalMedian">—</span>
+                </div>
+              </div>
+              <div class="metric-card" data-tooltip="5% of simulations ended below this value. Conservative downside estimate.">
+                <div class="metric-icon red"><i class="fas fa-arrow-down"></i></div>
+                <div class="metric-content">
+                  <span class="metric-label">5th Percentile</span>
+                  <span class="metric-value" id="simFinal5">—</span>
+                </div>
+              </div>
+              <div class="metric-card" data-tooltip="Lowest final value achieved in any simulation path.">
+                <div class="metric-icon orange"><i class="fas fa-exclamation-triangle"></i></div>
+                <div class="metric-content">
+                  <span class="metric-label">Worst Case</span>
+                  <span class="metric-value" id="simFinalMin">—</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- ==================== TEST LAB TAB ==================== -->
+      <div id="tab-testlab" class="tab-content">
+        <header class="topbar">
+          <div class="topbar-left">
+            <h1><i class="fas fa-flask"></i> Test Lab</h1>
+            <p class="topbar-subtitle">Simulate adding $1,000 investments to your portfolio</p>
+          </div>
+          <div class="topbar-right">
+            <div class="portfolio-selector">
+              <label>Test on</label>
+              <select id="labPortfolioSelect">
+                <option value="1">Portfolio 1</option>
+                <option value="2" id="labPortfolio2Option" disabled>Portfolio 2</option>
+              </select>
+            </div>
+            <button id="runLabBtn" class="btn-primary">
+              <i class="fas fa-vial"></i> Run Simulation
+            </button>
+          </div>
+        </header>
+
+        <div id="labStatus" class="status-bar"></div>
+
+        <!-- Current Portfolio Baseline -->
+        <section class="lab-section">
+          <div class="card">
+            <div class="card-header">
+              <h2><i class="fas fa-wallet"></i> Current Portfolio Baseline (Form 2 Backtest)</h2>
+              <span class="baseline-portfolio-badge" id="labPortfolioBadge">Portfolio 1</span>
+            </div>
+            <div class="baseline-metrics">
+              <div class="baseline-item">
+                <span class="baseline-label">Return</span>
+                <span class="baseline-value" id="baselineReturn">—</span>
+              </div>
+              <div class="baseline-item">
+                <span class="baseline-label">Volatility</span>
+                <span class="baseline-value" id="baselineVolatility">—</span>
+              </div>
+              <div class="baseline-item">
+                <span class="baseline-label">Sortino</span>
+                <span class="baseline-value" id="baselineSortino">—</span>
+              </div>
+              <div class="baseline-item">
+                <span class="baseline-label">Sharpe</span>
+                <span class="baseline-value" id="baselineSharpe">—</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Custom Ticker Test -->
+        <section class="lab-section">
+          <div class="card">
+            <div class="card-header">
+              <h2><i class="fas fa-search"></i> Test Any Ticker</h2>
+            </div>
+            <div class="custom-test-row">
+              <div class="ticker-input-group large">
+                <input id="customTickerInput" placeholder="Enter any ticker (e.g. ARKK, GLD, EWG)" />
+                <button id="testCustomBtn" class="btn-primary">
+                  <i class="fas fa-calculator"></i> Calculate Impact
+                </button>
+              </div>
+            </div>
+            <div id="customResult" class="custom-result"></div>
+          </div>
+        </section>
+
+        <!-- Top Rankings -->
+        <section class="lab-section">
+          <div class="rankings-grid">
+            <div class="card ranking-card">
+              <div class="card-header">
+                <h2><i class="fas fa-shield-alt"></i> Top 5 Risk Reducers</h2>
+                <span class="ranking-badge green">Lower Volatility</span>
+              </div>
+              <div id="topRiskReducers" class="ranking-list"></div>
+            </div>
+            <div class="card ranking-card">
+              <div class="card-header">
+                <h2><i class="fas fa-rocket"></i> Top 5 Return Boosters</h2>
+                <span class="ranking-badge blue">Higher Return</span>
+              </div>
+              <div id="topReturnBoosters" class="ranking-list"></div>
+            </div>
+            <div class="card ranking-card">
+              <div class="card-header">
+                <h2><i class="fas fa-star"></i> Top 5 Sortino Improvers</h2>
+                <span class="ranking-badge purple">Better Risk-Adjusted</span>
+              </div>
+              <div id="topSortinoImprovers" class="ranking-list"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Full ETF Simulation Table -->
+        <section class="lab-section">
+          <div class="card">
+            <div class="card-header">
+              <h2><i class="fas fa-list"></i> Full ETF Simulation Results</h2>
+              <span class="etf-count" id="etfCount">0 ETFs analyzed</span>
+            </div>
+            <div id="etfTable" class="data-table lab-table"></div>
+          </div>
+        </section>
+      </div>
+
+    </main>
+  </div>
+
+  <script src="/assets/app.js?v=20260308a"></script>
+</body>
+</html>
