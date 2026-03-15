@@ -286,6 +286,12 @@ function fmt2(v) {
   return Number(v).toFixed(2);
 }
 
+function fmtChartMonth(value) {
+  if (!value) return '';
+  const str = String(value);
+  return str.length >= 7 ? str.slice(0, 7) : str;
+}
+
 function fmtDelta3(v) {
   if (v === null || v === undefined || Number.isNaN(Number(v))) return { text: '—', class: 'neutral' };
   const val = Number(v).toFixed(3);
@@ -592,6 +598,7 @@ function renderValueChart(portfolioNum, data) {
         ...getBaseChartOptions().xaxis.labels,
         rotate: layout.rotateLabels,
         hideOverlappingLabels: true,
+        formatter: fmtChartMonth,
       },
     },
     yaxis: { ...getBaseChartOptions().yaxis, labels: { formatter: (v) => `$${v.toLocaleString()}` } },
@@ -1191,6 +1198,7 @@ function renderDualValueChart(data1, data2) {
         ...getBaseChartOptions().xaxis.labels,
         rotate: layout.rotateLabels,
         hideOverlappingLabels: true,
+        formatter: fmtChartMonth,
       },
     },
     yaxis: { ...getBaseChartOptions().yaxis, labels: { formatter: (v) => `$${v.toLocaleString()}` } },
