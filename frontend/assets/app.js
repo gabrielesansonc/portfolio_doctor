@@ -483,6 +483,32 @@ function bindTouchInfoSheets() {
   });
 }
 
+function bindPrimaryNavigation() {
+  const handledPointerTabs = new WeakSet();
+
+  document.querySelectorAll('[data-tab]').forEach((item) => {
+    const activateTab = (event) => {
+      event.preventDefault();
+      switchTab(item.dataset.tab);
+    };
+
+    item.addEventListener('click', (event) => {
+      if (handledPointerTabs.has(item)) {
+        handledPointerTabs.delete(item);
+        return;
+      }
+      activateTab(event);
+    });
+
+    if (item.classList.contains('mobile-nav-item')) {
+      item.addEventListener('pointerup', (event) => {
+        handledPointerTabs.add(item);
+        activateTab(event);
+      });
+    }
+  });
+}
+
 // ===== Chip/Tag Management =====
 function renderChips(target, list, onRemove) {
   if (!list || list.length === 0) {
@@ -2020,13 +2046,7 @@ function wireChipHandlers() {
 
 // ===== Event Bindings =====
 function bindEvents() {
-  // Tab navigation
-  document.querySelectorAll('[data-tab]').forEach((item) => {
-    item.addEventListener('click', (e) => {
-      e.preventDefault();
-      switchTab(item.dataset.tab);
-    });
-  });
+  bindPrimaryNavigation();
 
   // Portfolio tab navigation
   document.querySelectorAll('.portfolio-tab').forEach((tab) => {

@@ -969,7 +969,7 @@ span.section-info-icon:hover::before {
     left: 0;
     right: 0;
     bottom: 0;
-    z-index: 200;
+    z-index: 1100;
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
@@ -977,6 +977,7 @@ span.section-info-icon:hover::before {
     background: rgba(15, 17, 23, 0.9);
     backdrop-filter: blur(16px);
     border-top: 1px solid rgba(42, 46, 56, 0.95);
+    pointer-events: auto;
   }
 
   .mobile-nav-item {
@@ -994,6 +995,9 @@ span.section-info-icon:hover::before {
     color: var(--text-secondary);
     font-size: 0.78rem;
     font-weight: 600;
+    pointer-events: auto;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
   }
 
   .mobile-nav-item i {
