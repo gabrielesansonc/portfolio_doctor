@@ -310,6 +310,28 @@ function fmtChartMonth(value) {
   return str.length >= 7 ? str.slice(0, 7) : str;
 }
 
+function resolvePortfolioValueKey(data, displayName = '') {
+  const rows = data?.value_history || [];
+  if (!rows.length) return null;
+
+  const sampleRow = rows.find((row) => row && typeof row === 'object') || {};
+  const benchmarkSet = new Set(data?.config?.benchmarks || []);
+  const candidates = [
+    data?.config?.portfolio_name,
+    data?.portfolio_summary?.ticker,
+    displayName,
+  ].filter(Boolean);
+
+  for (const key of candidates) {
+    if (Object.prototype.hasOwnProperty.call(sampleRow, key)) {
+      return key;
+    }
+  }
+
+  const fallback = Object.keys(sampleRow).find((key) => key !== 'date' && !benchmarkSet.has(key));
+  return fallback || null;
+}
+
 function fmtDelta3(v) {
   if (v === null || v === undefined || Number.isNaN(Number(v))) return { text: '—', class: 'neutral' };
   const val = Number(v).toFixed(3);
@@ -830,7 +852,7 @@ function renderValueChart(portfolioNum, data) {
     return;
   }
 
-  const portfolioName = data.config?.portfolio_name || 'My Portfolio';
+  const portfolioName = resolvePortfolioValueKey(data, state[`portfolio${portfolioNum}`]?.name) || data.config?.portfolio_name || 'My Portfolio';
   const categories = data.value_history.map((pt) => pt.date);
   const portfolioData = data.value_history.map((pt) => parseFloat((pt[portfolioName] || 0).toFixed(2)));
 
@@ -1385,8 +1407,8 @@ function renderDualValueChart(data1, data2) {
   }
 
   // Backend portfolio names (for data access)
-  const backendName1 = data1.config?.portfolio_name || 'Portfolio 1';
-  const backendName2 = data2.config?.portfolio_name || 'Portfolio 2';
+  const backendName1 = resolvePortfolioValueKey(data1, state.portfolio1.name) || data1.config?.portfolio_name || 'Portfolio 1';
+  const backendName2 = resolvePortfolioValueKey(data2, state.portfolio2.name) || data2.config?.portfolio_name || 'Portfolio 2';
   
   // User-defined display names
   const displayName1 = state.portfolio1.name;
