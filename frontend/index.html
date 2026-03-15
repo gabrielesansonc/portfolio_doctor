@@ -9,7 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.45.1/dist/apexcharts.min.js"></script>
-  <link rel="stylesheet" href="/assets/styles.css?v=20260308a" />
+  <link rel="stylesheet" href="/assets/styles.css?v=20260308k" />
 </head>
 <body>
   <div class="app">
@@ -289,7 +289,7 @@
           <section class="charts-row two-col">
             <div class="card">
               <div class="card-header">
-                <h2><i class="fas fa-chart-area"></i> Portfolio Performance <span class="title-spinner" id="spinnerValue1"></span></h2>
+                <h2><i class="fas fa-chart-area"></i> Portfolio Performance <span class="section-info-icon" data-tooltip-text="Compare your portfolio against other benchmarks. Assuming you just bought and sold in the benchmark ETF/stock. Answers the question: Would just investing in the S&P 500 have been better for me?">ⓘ</span><span class="title-spinner" id="spinnerValue1"></span></h2>
                 <div class="card-actions">
                   <div class="ticker-input-group">
                     <input id="benchmarkInput1" placeholder="Add benchmark (e.g. DIA)" />
@@ -302,7 +302,7 @@
             </div>
             <div class="card">
               <div class="card-header">
-                <h2><i class="fas fa-chart-pie"></i> Holdings Allocation <span class="title-spinner" id="spinnerHoldings1"></span></h2>
+                <h2><i class="fas fa-chart-pie"></i> Holdings Allocation <span class="section-info-icon" data-tooltip-text="Your current portfolio allocation as of today. Shows the percentage and value distribution across all your holdings.">ⓘ</span><span class="title-spinner" id="spinnerHoldings1"></span></h2>
               </div>
               <div id="holdingsChart1" class="chart-donut"></div>
             </div>
@@ -312,7 +312,7 @@
           <section class="charts-row">
             <div class="card">
               <div class="card-header">
-                <h2><i class="fas fa-table"></i> Benchmark Comparison</h2>
+                <h2><i class="fas fa-table"></i> Benchmark Comparison <span class="section-info-icon" data-tooltip-text="Detailed performance metrics comparing your portfolio against benchmark assets. Shows returns, volatility, risk-adjusted returns (Sharpe, Sortino), and correlation measures.">ⓘ</span></h2>
               </div>
               <div id="benchmarkTable1" class="data-table"></div>
             </div>
@@ -322,7 +322,7 @@
           <section class="charts-row">
             <div class="card">
               <div class="card-header">
-                <h2><i class="fas fa-crosshairs"></i> Risk-Return Analysis (Efficient Frontier) <span class="title-spinner" id="spinnerScatter1"></span></h2>
+                <h2><i class="fas fa-crosshairs"></i> Risk-Return Analysis (Efficient Frontier) <span class="section-info-icon" data-tooltip-text="Plots annual return vs volatility. Shows where your portfolio sits relative to benchmarks. Assets closer to upper-left offer better risk-adjusted returns.">ⓘ</span><span class="title-spinner" id="spinnerScatter1"></span></h2>
                 <div class="card-actions">
                   <div class="ticker-input-group">
                     <input id="scatterInput1" placeholder="Add ticker (e.g. TSLA)" />
@@ -440,7 +440,7 @@
             </div>
             <div class="card">
               <div class="card-header">
-                <h2><i class="fas fa-chart-pie"></i> Holdings Allocation <span class="title-spinner" id="spinnerHoldings2"></span></h2>
+                <h2><i class="fas fa-chart-pie"></i> Holdings Allocation <span class="section-info-icon" data-tooltip-text="Your current portfolio allocation as of today. Shows the percentage and value distribution across all your holdings.">ⓘ</span><span class="title-spinner" id="spinnerHoldings2"></span></h2>
               </div>
               <div id="holdingsChart2" class="chart-donut"></div>
             </div>
@@ -450,7 +450,7 @@
           <section class="charts-row">
             <div class="card">
               <div class="card-header">
-                <h2><i class="fas fa-table"></i> Benchmark Comparison</h2>
+                <h2><i class="fas fa-table"></i> Benchmark Comparison <span class="section-info-icon" data-tooltip-text="Detailed performance metrics comparing your portfolio against benchmark assets. Shows returns, volatility, risk-adjusted returns (Sharpe, Sortino), and correlation measures.">ⓘ</span></h2>
               </div>
               <div id="benchmarkTable2" class="data-table"></div>
             </div>
@@ -460,7 +460,7 @@
           <section class="charts-row">
             <div class="card">
               <div class="card-header">
-                <h2><i class="fas fa-crosshairs"></i> Risk-Return Analysis (Efficient Frontier) <span class="title-spinner" id="spinnerScatter2"></span></h2>
+                <h2><i class="fas fa-crosshairs"></i> Risk-Return Analysis (Efficient Frontier) <span class="section-info-icon" data-tooltip-text="Plots annual return vs volatility. Shows where your portfolio sits relative to benchmarks. Assets closer to upper-left offer better risk-adjusted returns.">ⓘ</span><span class="title-spinner" id="spinnerScatter2"></span></h2>
                 <div class="card-actions">
                   <div class="ticker-input-group">
                     <input id="scatterInput2" placeholder="Add ticker (e.g. TSLA)" />
@@ -614,7 +614,7 @@
             </div>
             <div class="card">
               <div class="card-header">
-                <h2><i class="fas fa-chart-pie"></i> Holdings Allocation <span class="title-spinner" id="spinnerDualHoldings"></span></h2>
+                <h2><i class="fas fa-chart-pie"></i> Holdings Allocation <span class="section-info-icon" data-tooltip-text="Your current portfolio allocation as of today. Shows the percentage and value distribution across all your holdings.">ⓘ</span><span class="title-spinner" id="spinnerDualHoldings"></span></h2>
               </div>
               <div class="dual-holdings-container">
                 <div class="dual-holding">
@@ -633,7 +633,7 @@
           <section class="charts-row">
             <div class="card">
               <div class="card-header">
-                <h2><i class="fas fa-table"></i> Benchmark Comparison</h2>
+                <h2><i class="fas fa-table"></i> Benchmark Comparison <span class="section-info-icon" data-tooltip-text="Detailed performance metrics comparing your portfolio against benchmark assets. Shows returns, volatility, risk-adjusted returns (Sharpe, Sortino), and correlation measures.">ⓘ</span></h2>
               </div>
               <div id="dualBenchmarkTable" class="data-table"></div>
             </div>
@@ -643,7 +643,7 @@
           <section class="charts-row">
             <div class="card">
               <div class="card-header">
-                <h2><i class="fas fa-crosshairs"></i> Risk-Return Analysis (Efficient Frontier) <span class="title-spinner" id="spinnerDualScatter"></span></h2>
+                <h2><i class="fas fa-crosshairs"></i> Risk-Return Analysis (Efficient Frontier) <span class="section-info-icon" data-tooltip-text="Plots annual return vs volatility. Shows where your portfolio sits relative to benchmarks. Assets closer to upper-left offer better risk-adjusted returns.">ⓘ</span><span class="title-spinner" id="spinnerDualScatter"></span></h2>
                 <div class="card-actions">
                   <div class="ticker-input-group">
                     <input id="dualScatterInput" placeholder="Add ticker (e.g. TSLA)" />
@@ -768,7 +768,7 @@
         <section class="sim-section">
           <div class="card">
             <div class="card-header">
-              <h2><i class="fas fa-wave-square"></i> 5-Year Projection</h2>
+              <h2><i class="fas fa-wave-square"></i> 5-Year Projection <span class="section-info-icon" data-tooltip-text="Monte Carlo simulation projecting your portfolio value 5 years forward. Uses your holdings' historical returns and volatility to model possible future outcomes. Shows mean, best/worst cases, and confidence intervals.">ⓘ</span></h2>
             </div>
             <div class="chart-wrapper" style="position:relative;">
               <div id="spinnerSimChart" class="spinner"></div>
@@ -854,13 +854,25 @@
           </div>
         </header>
 
+        <!-- Purpose Description -->
+        <div class="card" style="margin: 1.5rem 0;">
+          <div class="card-body" style="padding: 1.5rem;">
+            <p style="color: var(--text-secondary); line-height: 1.6; margin: 0;">
+              <strong style="color: var(--text-primary);">What-If Analysis:</strong> Test how adding $1,000 to various ETFs would have impacted your portfolio metrics. 
+              This uses <strong>historical data only</strong> — it shows what would have happened if you had invested in the past, not what will happen in the future. 
+              <span style="color: var(--accent-cyan);">This is not a forecast and should not be used to decide what to invest in.</span> 
+              It simply reveals how your portfolio's risk-return profile would have changed with different past allocations.
+            </p>
+          </div>
+        </div>
+
         <div id="labStatus" class="status-bar"></div>
 
         <!-- Current Portfolio Baseline -->
         <section class="lab-section">
           <div class="card">
             <div class="card-header">
-              <h2><i class="fas fa-wallet"></i> Current Portfolio Baseline (Form 2 Backtest)</h2>
+              <h2><i class="fas fa-wallet"></i> Current Portfolio Baseline <span class="section-info-icon" data-tooltip-text="Baseline metrics calculated using your current holdings (today's allocation). This represents your portfolio if you held these exact positions throughout the historical period.">ⓘ</span></h2>
               <span class="baseline-portfolio-badge" id="labPortfolioBadge">Portfolio 1</span>
             </div>
             <div class="baseline-metrics">
