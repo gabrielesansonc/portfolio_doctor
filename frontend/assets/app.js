@@ -2,15 +2,22 @@
 
 // API Configuration - supports both local and production environments
 const API_BASE_URL = (() => {
-  // Production: hardcode Render URL
-  if (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')) {
-    return 'https://portfolio-doctor.onrender.com';
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    // Vercel frontend → call Render backend
+    if (hostname.includes('vercel.app')) {
+      return 'https://portfolio-doctor.onrender.com';
+    }
+    // Render serves both frontend and backend → use relative URLs
+    if (hostname.includes('onrender.com')) {
+      return '';  // Empty string = same origin (relative URLs)
+    }
   }
   // Local development
   return 'http://localhost:8000';
 })();
 
-console.log(`[Portfolio Dashboard] Using API Base URL: ${API_BASE_URL}`);
+console.log(`[Portfolio Dashboard] Using API Base URL: ${API_BASE_URL || '(same origin)'}`);
 
 const state = {
   charts: {
