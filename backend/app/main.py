@@ -8,7 +8,7 @@ from typing import Any
 
 import pandas as pd
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -30,6 +30,10 @@ from helper import (  # noqa: E402
 
 DATA_DIR = ROOT_DIR / "data"
 FRONTEND_DIR = ROOT_DIR / "frontend"
+
+# Ensure data directory exists (important for production deployments)
+DATA_DIR.mkdir(exist_ok=True)
+
 DEFAULT_CSV = "16d1a7ad-1a4f-5347-b5e5-17ca4bb84564.csv"
 DEFAULT_BENCHMARKS = ["SPY", "QQQ"]
 DEFAULT_SCATTER = ["QQQ", "VTI", "AAPL", "MSFT", "AMZN", "GOOGL", "VOO"]
@@ -974,9 +978,14 @@ def run_gbm_simulation(req: SimulationRequest) -> dict[str, Any]:
     }
 
 
-app.mount("/assets", StaticFiles(directory=FRONTEND_DIR / "assets"), name="assets")
+# Only mount static files if running locally (frontend directory exists)
+if (FRONTEND_DIR / "assets").exists():
+    app.mount("/assets", StaticFiles(directory=FRONTEND_DIR / "assets"), name="assets")
 
 
 @app.get("/")
-def dashboard() -> FileResponse:
+def dashboard():
+    # In production on Render, frontend is served by Vercel
+    if not (FRONTEND_DIR / "index.html").exists():
+        return JSONResponse({"message": "Portfolio Dashboard API. Frontend is served separately.", "docs": "/docs"})
     return FileResponse(FRONTEND_DIR / "index.html")
