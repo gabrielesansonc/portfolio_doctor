@@ -55,6 +55,14 @@ const state = {
   currentTab: 'dashboard',
   currentPortfolioView: '1', // '1' or 'dual'
   labResults: null,
+  cache: {
+    simulation: {},
+    testlab: {},
+  },
+  preload: {
+    simulation: {},
+    testlab: {},
+  },
 };
 
 // Color palette
@@ -122,6 +130,16 @@ const el = {
   startAnalysisBtn: document.getElementById('startAnalysisBtn'),
   useSampleBtn1: document.getElementById('useSampleBtn1'),
   useSampleBtn2: document.getElementById('useSampleBtn2'),
+  uploadNextBtn: document.getElementById('uploadNextBtn'),
+  uploadBackBtn: document.getElementById('uploadBackBtn'),
+  uploadStepIntro: document.getElementById('uploadStepIntro'),
+  uploadStepCsv: document.getElementById('uploadStepCsv'),
+  uploadStepPill1: document.getElementById('uploadStepPill1'),
+  uploadStepPill2: document.getElementById('uploadStepPill2'),
+  showCsvHelpBtn: document.getElementById('showCsvHelpBtn'),
+  csvHelpModal: document.getElementById('csvHelpModal'),
+  csvHelpBackdrop: document.getElementById('csvHelpBackdrop'),
+  closeCsvHelpBtn: document.getElementById('closeCsvHelpBtn'),
   
   // Dashboard elements
   years: document.getElementById('years'),
@@ -302,6 +320,40 @@ function fmtDelta3(v) {
   };
 }
 
+function getPortfolioCacheKey(portfolioNum) {
+  const portfolioState = state[`portfolio${portfolioNum}`];
+  return `${portfolioState.file || 'none'}|${Number(el.years?.value || 5)}`;
+}
+
+function scrollToDashboardTop() {
+  switchTab('dashboard');
+  const heading = document.getElementById('dashboardHeading');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  if (heading && typeof heading.focus === 'function') {
+    setTimeout(() => heading.focus({ preventScroll: true }), 120);
+  }
+}
+
+function setUploadStep(step) {
+  const showIntro = step === 'intro';
+  if (el.uploadStepIntro) el.uploadStepIntro.classList.toggle('active', showIntro);
+  if (el.uploadStepCsv) el.uploadStepCsv.classList.toggle('active', !showIntro);
+  if (el.uploadStepPill1) el.uploadStepPill1.classList.toggle('active', showIntro);
+  if (el.uploadStepPill2) el.uploadStepPill2.classList.toggle('active', !showIntro);
+}
+
+function openCsvHelpModal() {
+  if (!el.csvHelpModal) return;
+  el.csvHelpModal.classList.add('active');
+  el.csvHelpModal.setAttribute('aria-hidden', 'false');
+}
+
+function closeCsvHelpModal() {
+  if (!el.csvHelpModal) return;
+  el.csvHelpModal.classList.remove('active');
+  el.csvHelpModal.setAttribute('aria-hidden', 'true');
+}
+
 function setStatus(text, type = 'info', tradesInfo = null) {
   let statusHtml = text;
   if (tradesInfo) {
@@ -318,6 +370,141 @@ function setLabStatus(text, type = 'info') {
   el.labStatus.className = 'status-bar';
   if (type === 'error') el.labStatus.classList.add('error');
   if (type === 'success') el.labStatus.classList.add('success');
+}
+
+function markPreloadState(kind, portfolioNum, status) {
+  state.preload[kind][portfolioNum] = status;
+}
+
+function renderCachedSimulation(portfolioNum, payload) {
+  if (!payload) return;
+  const portfolioState = portfolioNum === '2' ? state.portfolio2 : state.portfolio1;
+
+  if (el.simPortfolioBadge) el.simPortfolioBadge.textContent = portfolioState.name;
+  if (el.simMuAnnual) el.simMuAnnual.textContent = fmtPct(payload.parameters.mu_annual);
+  if (el.simSigmaAnnual) el.simSigmaAnnual.textContent = fmtPct(payload.parameters.sigma_annual);
+  if (el.simMuDaily) el.simMuDaily.textContent = `${(payload.parameters.mu_daily * 100).toFixed(4)}%`;
+  if (el.simSigmaDaily) el.simSigmaDaily.textContent = `${(payload.parameters.sigma_daily * 100).toFixed(4)}%`;
+  if (el.simHistoryDays) el.simHistoryDays.textContent = payload.parameters.history_days.toLocaleString();
+  if (el.simNumHoldings) el.simNumHoldings.textContent = payload.parameters.num_holdings;
+  if (el.simCurrentValue) el.simCurrentValue.textContent = `$${payload.current_value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  if (el.simFinalMean) el.simFinalMean.textContent = `$${payload.final_values.mean.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+  if (el.simFinalMedian) el.simFinalMedian.textContent = `$${payload.final_values.median.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+  if (el.simFinal5) el.simFinal5.textContent = `$${payload.final_values.percentile_5.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+  if (el.simFinal95) el.simFinal95.textContent = `$${payload.final_values.percentile_95.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+  if (el.simFinalMin) el.simFinalMin.textContent = `$${payload.final_values.min.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+  if (el.simFinalMax) el.simFinalMax.textContent = `$${payload.final_values.max.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+  renderSimulationChart(payload.simulation, payload.current_value);
+}
+
+function renderCachedTestLab(portfolioNum, payload) {
+  if (!payload) return;
+  const portfolioState = state[`portfolio${portfolioNum}`];
+  state.labResults = payload;
+  if (el.labPortfolioBadge) el.labPortfolioBadge.textContent = portfolioState.name || `Portfolio ${portfolioNum}`;
+  renderLabResults(payload);
+}
+
+async function fetchSimulationData(portfolioNum, { force = false } = {}) {
+  const portfolioState = portfolioNum === '2' ? state.portfolio2 : state.portfolio1;
+  if (!portfolioState.file) throw new Error('Please upload a portfolio first');
+
+  const cacheKey = getPortfolioCacheKey(portfolioNum);
+  if (!force && state.cache.simulation[cacheKey]) {
+    return state.cache.simulation[cacheKey];
+  }
+
+  if (!force && state.preload.simulation[cacheKey]?.promise) {
+    return state.preload.simulation[cacheKey].promise;
+  }
+
+  const request = fetch(`${API_BASE_URL}/api/simulate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      csv_file: portfolioState.file,
+      portfolio_name: portfolioState.name,
+      history_years: 5,
+      simulation_years: 5,
+      num_simulations: 300,
+    }),
+  }).then(async (response) => {
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.detail || 'Simulation failed');
+    }
+    const data = await response.json();
+    state.cache.simulation[cacheKey] = data;
+    markPreloadState('simulation', cacheKey, { status: 'ready' });
+    return data;
+  }).catch((error) => {
+    markPreloadState('simulation', cacheKey, { status: 'error', error });
+    throw error;
+  });
+
+  markPreloadState('simulation', cacheKey, { status: 'loading', promise: request });
+  return request;
+}
+
+async function fetchTestLabData(portfolioNum, { force = false } = {}) {
+  const portfolioState = state[`portfolio${portfolioNum}`];
+  if (!portfolioState.file) throw new Error(`Portfolio ${portfolioNum} CSV not uploaded.`);
+
+  const cacheKey = getPortfolioCacheKey(portfolioNum);
+  if (!force && state.cache.testlab[cacheKey]) {
+    return state.cache.testlab[cacheKey];
+  }
+
+  if (!force && state.preload.testlab[cacheKey]?.promise) {
+    return state.preload.testlab[cacheKey].promise;
+  }
+
+  const request = fetch(`${API_BASE_URL}/api/testlab/simulate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      csv_file: portfolioState.file,
+      years: Number(el.years.value) || 5,
+      risk_free_rate: 0.037,
+      investment_amount: 1000,
+    }),
+  }).then(async (response) => {
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.detail || 'Simulation failed');
+    state.cache.testlab[cacheKey] = payload;
+    markPreloadState('testlab', cacheKey, { status: 'ready' });
+    return payload;
+  }).catch((error) => {
+    markPreloadState('testlab', cacheKey, { status: 'error', error });
+    throw error;
+  });
+
+  markPreloadState('testlab', cacheKey, { status: 'loading', promise: request });
+  return request;
+}
+
+function warmSecondaryTabs() {
+  const warmPortfolio = async (portfolioNum) => {
+    const portfolioState = state[`portfolio${portfolioNum}`];
+    if (!portfolioState.file) return;
+
+    try {
+      await fetchSimulationData(portfolioNum);
+    } catch (error) {
+      console.warn(`Simulation preload failed for portfolio ${portfolioNum}:`, error);
+    }
+
+    try {
+      await fetchTestLabData(portfolioNum);
+    } catch (error) {
+      console.warn(`Test Lab preload failed for portfolio ${portfolioNum}:`, error);
+    }
+  };
+
+  setTimeout(() => { warmPortfolio(1); }, 300);
+  if (state.portfolio2.file) {
+    setTimeout(() => { warmPortfolio(2); }, 1200);
+  }
 }
 
 function destroyChart(name) {
@@ -402,6 +589,50 @@ function switchTab(tabName) {
         if (chart) chart.resize();
       });
     }, 100);
+    return;
+  }
+
+  if (tabName === 'simulation') {
+    const portfolioNum = el.simPortfolioSelect?.value || '1';
+    const cached = state.cache.simulation[getPortfolioCacheKey(portfolioNum)];
+    if (cached) {
+      renderCachedSimulation(portfolioNum, cached);
+      showSimStatus('Prepared in background.', 'success');
+    } else if (state[`portfolio${portfolioNum}`]?.file) {
+      showSimStatus('Preparing simulation in background...', 'loading');
+      fetchSimulationData(portfolioNum).then((payload) => {
+        if (state.currentTab === 'simulation') {
+          renderCachedSimulation(portfolioNum, payload);
+          showSimStatus('Simulation ready.', 'success');
+        }
+      }).catch((error) => {
+        if (state.currentTab === 'simulation') {
+          showSimStatus(`Error: ${error.message}`, 'error');
+        }
+      });
+    }
+    return;
+  }
+
+  if (tabName === 'testlab') {
+    const portfolioNum = el.labPortfolioSelect?.value || '1';
+    const cached = state.cache.testlab[getPortfolioCacheKey(portfolioNum)];
+    if (cached) {
+      renderCachedTestLab(portfolioNum, cached);
+      setLabStatus('Prepared in background.', 'success');
+    } else if (state[`portfolio${portfolioNum}`]?.file) {
+      setLabStatus('Preparing Test Lab in background...', 'info');
+      fetchTestLabData(portfolioNum).then((payload) => {
+        if (state.currentTab === 'testlab') {
+          renderCachedTestLab(portfolioNum, payload);
+          setLabStatus(`Simulation ready! Analyzed ${payload.all_results?.length || payload.etf_count || 0} ETFs.`, 'success');
+        }
+      }).catch((error) => {
+        if (state.currentTab === 'testlab') {
+          setLabStatus(`Error: ${error.message}`, 'error');
+        }
+      });
+    }
   }
 }
 
@@ -1012,13 +1243,14 @@ async function runAnalysis(showProgress = false) {
 
   try {
     if (showProgress) showProgressBar(20);
-    // Analyze portfolio 1
-    const data1 = await runAnalysisForPortfolio(1);
-    if (showProgress) showProgressBar(50);
+    let data1 = null;
+    let data2 = null;
     
     if (hasTwoPortfolios) {
-      // Dual portfolio mode - analyze both and show combined view
-      const data2 = await runAnalysisForPortfolio(2);
+      [data1, data2] = await Promise.all([
+        runAnalysisForPortfolio(1),
+        runAnalysisForPortfolio(2),
+      ]);
       if (showProgress) showProgressBar(80);
       
       // Hide tabs and individual portfolio content
@@ -1054,13 +1286,14 @@ async function runAnalysis(showProgress = false) {
         setStatus('Analysis complete!', 'success');
       }
     } else {
+      data1 = await runAnalysisForPortfolio(1);
+      if (showProgress) showProgressBar(70);
       // Single portfolio mode
       el.portfolioTabs.style.display = 'none'; // Hide tabs for single portfolio too
       el.portfolio1Content.classList.add('active');
       el.dualContent.classList.remove('active');
       
       if (data1) {
-        if (showProgress) showProgressBar(70);
         renderPortfolioMetrics(1, data1);
         
         renderValueChart(1, data1);
@@ -1084,6 +1317,8 @@ async function runAnalysis(showProgress = false) {
         setStatus('Analysis complete!', 'success');
       }
     }
+
+    warmSecondaryTabs();
   } catch (error) {
     setStatus(`Error: ${error.message || error}`, 'error');
     // Hide all chart loading spinners on error
@@ -1563,20 +1798,7 @@ async function runLabSimulation() {
   el.labPortfolioBadge.textContent = portfolioState.name || `Portfolio ${portfolioNum}`;
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/testlab/simulate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        csv_file: portfolioState.file,
-        years: Number(el.years.value) || 5,
-        risk_free_rate: 0.037,
-        investment_amount: 1000,
-      }),
-    });
-
-    const payload = await response.json();
-    if (!response.ok) throw new Error(payload.detail || 'Simulation failed');
-
+    const payload = await fetchTestLabData(portfolioNum);
     state.labResults = payload;
     renderLabResults(payload);
     setLabStatus(`Simulation complete! Analyzed ${payload.all_results?.length || payload.etf_count || 0} ETFs.`, 'success');
@@ -1768,45 +1990,8 @@ async function runGBMSimulation() {
   if (el.spinnerSimChart) el.spinnerSimChart.classList.add('active');
   
   try {
-    const response = await fetch(`${API_BASE_URL}/api/simulate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        csv_file: portfolioState.file,
-        portfolio_name: portfolioState.name,
-        history_years: 5,
-        simulation_years: 5,
-        num_simulations: 300,
-      }),
-    });
-    
-    if (!response.ok) {
-      const err = await response.json();
-      throw new Error(err.detail || 'Simulation failed');
-    }
-    
-    const data = await response.json();
-    
-    // Update GBM parameters display
-    if (el.simMuAnnual) el.simMuAnnual.textContent = fmtPct(data.parameters.mu_annual);
-    if (el.simSigmaAnnual) el.simSigmaAnnual.textContent = fmtPct(data.parameters.sigma_annual);
-    if (el.simMuDaily) el.simMuDaily.textContent = `${(data.parameters.mu_daily * 100).toFixed(4)}%`;
-    if (el.simSigmaDaily) el.simSigmaDaily.textContent = `${(data.parameters.sigma_daily * 100).toFixed(4)}%`;
-    if (el.simHistoryDays) el.simHistoryDays.textContent = data.parameters.history_days.toLocaleString();
-    if (el.simNumHoldings) el.simNumHoldings.textContent = data.parameters.num_holdings;
-    if (el.simCurrentValue) el.simCurrentValue.textContent = `$${data.current_value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    
-    // Update final values
-    if (el.simFinalMean) el.simFinalMean.textContent = `$${data.final_values.mean.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
-    if (el.simFinalMedian) el.simFinalMedian.textContent = `$${data.final_values.median.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
-    if (el.simFinal5) el.simFinal5.textContent = `$${data.final_values.percentile_5.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
-    if (el.simFinal95) el.simFinal95.textContent = `$${data.final_values.percentile_95.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
-    if (el.simFinalMin) el.simFinalMin.textContent = `$${data.final_values.min.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
-    if (el.simFinalMax) el.simFinalMax.textContent = `$${data.final_values.max.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
-    
-    // Render simulation chart
-    renderSimulationChart(data.simulation, data.current_value);
-    
+    const data = await fetchSimulationData(portfolioNum);
+    renderCachedSimulation(portfolioNum, data);
     showSimStatus('Simulation complete!', 'success');
     
   } catch (error) {
@@ -2083,8 +2268,29 @@ function bindEvents() {
     state.portfolio2.name = el.portfolioName2.value.trim() || 'Portfolio 2';
     
     el.uploadOverlay.classList.remove('active');
-    runAnalysis();
+    scrollToDashboardTop();
+    runAnalysis(true);
   });
+
+  if (el.uploadNextBtn) {
+    el.uploadNextBtn.addEventListener('click', () => setUploadStep('csv'));
+  }
+
+  if (el.uploadBackBtn) {
+    el.uploadBackBtn.addEventListener('click', () => setUploadStep('intro'));
+  }
+
+  if (el.showCsvHelpBtn) {
+    el.showCsvHelpBtn.addEventListener('click', openCsvHelpModal);
+  }
+
+  if (el.closeCsvHelpBtn) {
+    el.closeCsvHelpBtn.addEventListener('click', closeCsvHelpModal);
+  }
+
+  if (el.csvHelpBackdrop) {
+    el.csvHelpBackdrop.addEventListener('click', closeCsvHelpModal);
+  }
 
   // Use Sample Portfolio buttons (for each portfolio)
   async function generateSampleForPortfolio(portfolioNum) {
@@ -2134,6 +2340,7 @@ function bindEvents() {
     el.portfolioName1.value = state.portfolio1.name;
     el.portfolioName2.value = state.portfolio2.name;
     el.uploadOverlay.classList.add('active');
+    setUploadStep('csv');
   });
 
   // Run analysis button (initial CSV load - show progress bar)
@@ -2268,6 +2475,40 @@ function bindEvents() {
       const num = el.simPortfolioSelect.value;
       const pState = num === '2' ? state.portfolio2 : state.portfolio1;
       if (el.simPortfolioBadge) el.simPortfolioBadge.textContent = pState.name;
+      const cached = state.cache.simulation[getPortfolioCacheKey(num)];
+      if (cached) {
+        renderCachedSimulation(num, cached);
+        showSimStatus('Prepared in background.', 'success');
+      } else if (state.currentTab === 'simulation') {
+        showSimStatus('Preparing simulation in background...', 'loading');
+        fetchSimulationData(num).then((payload) => {
+          renderCachedSimulation(num, payload);
+          showSimStatus('Simulation ready.', 'success');
+        }).catch((error) => {
+          showSimStatus(`Error: ${error.message}`, 'error');
+        });
+      }
+    });
+  }
+
+  if (el.labPortfolioSelect) {
+    el.labPortfolioSelect.addEventListener('change', () => {
+      const num = el.labPortfolioSelect.value;
+      const pState = state[`portfolio${num}`];
+      if (el.labPortfolioBadge) el.labPortfolioBadge.textContent = pState.name;
+      const cached = state.cache.testlab[getPortfolioCacheKey(num)];
+      if (cached) {
+        renderCachedTestLab(num, cached);
+        setLabStatus('Prepared in background.', 'success');
+      } else if (state.currentTab === 'testlab') {
+        setLabStatus('Preparing Test Lab in background...', 'info');
+        fetchTestLabData(num).then((payload) => {
+          renderCachedTestLab(num, payload);
+          setLabStatus(`Simulation ready! Analyzed ${payload.all_results?.length || payload.etf_count || 0} ETFs.`, 'success');
+        }).catch((error) => {
+          setLabStatus(`Error: ${error.message}`, 'error');
+        });
+      }
     });
   }
 
@@ -2322,6 +2563,7 @@ async function init() {
     
     // Show upload overlay (no default CSV)
     el.uploadOverlay.classList.add('active');
+    setUploadStep('intro');
     
   } catch (error) {
     console.error('Initialization failed:', error);

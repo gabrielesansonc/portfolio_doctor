@@ -64,103 +64,152 @@
             <p class="upload-subtitle">Get an intuitive quantitative understanding of your portfolio performance</p>
           </div>
 
-          <!-- App Description -->
-          <div class="app-description">
-            <div class="description-grid">
-              <div class="description-item">
-                <div class="description-icon blue">
-                  <i class="fas fa-chart-bar"></i>
-                </div>
-                <div class="description-content">
-                  <h3>Portfolio Metrics</h3>
-                  <p>Calculate key metrics like Sharpe ratio, Sortino ratio, max drawdown, and beta with clear explanations of what they mean for your investments</p>
-                </div>
-              </div>
-              <div class="description-item">
-                <div class="description-icon green">
-                  <i class="fas fa-scale-balanced"></i>
-                </div>
-                <div class="description-content">
-                  <h3>Benchmark Comparison</h3>
-                  <p>See how your portfolio stacks up against SPY, QQQ, and other benchmarks—visualize risk vs. return trade-offs</p>
-                </div>
-              </div>
-              <div class="description-item">
-                <div class="description-icon purple">
-                  <i class="fas fa-forward"></i>
-                </div>
-                <div class="description-content">
-                  <h3>Future Projections</h3>
-                  <p>Run Monte Carlo simulations to project your portfolio's potential value 5 years forward based on historical performance</p>
-                </div>
-              </div>
-              <div class="description-item">
-                <div class="description-icon cyan">
-                  <i class="fas fa-flask"></i>
-                </div>
-                <div class="description-content">
-                  <h3>What-If Analysis</h3>
-                  <p>Test alternate investment decisions—see what would have happened if you'd allocated differently or invested in other assets</p>
-                </div>
-              </div>
-            </div>
+          <div class="upload-step-indicator">
+            <span id="uploadStepPill1" class="upload-step-pill active">1. Why this works</span>
+            <span id="uploadStepPill2" class="upload-step-pill">2. Upload CSV</span>
           </div>
 
-          <!-- Upload Section -->
-          <div class="upload-section-header">
-            <i class="fas fa-cloud-upload-alt"></i>
-            <h3>Upload Your Portfolio Data</h3>
-            <p>Upload Robinhood CSV exports to begin your analysis</p>
-          </div>
-          
-          <div class="upload-cards">
-            <!-- Portfolio 1 Upload -->
-            <div class="upload-card" id="uploadCard1">
-              <div class="upload-card-header">
-                <span class="upload-card-title">Portfolio 1</span>
+          <section id="uploadStepIntro" class="upload-step-section active">
+            <div class="app-description">
+              <div class="why-copy">
+                <h3>Why upload a Robinhood CSV?</h3>
+                <p>This app reconstructs your trade history so it can measure what actually happened in your portfolio, not just what your holdings look like today.</p>
               </div>
-              <input id="portfolioName1" type="text" class="portfolio-name-input" placeholder="Portfolio 1" value="Portfolio 1" />
-              <p class="upload-card-status" id="upload1Status">No file selected</p>
-              <input id="csvUpload1" type="file" accept=".csv" hidden />
-              <div class="upload-card-buttons">
-                <button id="uploadBtn1" class="btn-upload-card">
-                  <i class="fas fa-folder-open"></i> Choose CSV
-                </button>
-                <button id="useSampleBtn1" class="btn-sample-small">
-                  <i class="fas fa-flask"></i> Use Sample
-                </button>
+              <div class="description-grid">
+                <div class="description-item">
+                  <div class="description-icon blue">
+                    <i class="fas fa-chart-bar"></i>
+                  </div>
+                  <div class="description-content">
+                    <h3>Portfolio Metrics</h3>
+                    <p>Calculate key metrics like Sharpe ratio, Sortino ratio, max drawdown, and beta with clear explanations of what they mean for your investments</p>
+                  </div>
+                </div>
+                <div class="description-item">
+                  <div class="description-icon green">
+                    <i class="fas fa-scale-balanced"></i>
+                  </div>
+                  <div class="description-content">
+                    <h3>Benchmark Comparison</h3>
+                    <p>See how your portfolio stacks up against SPY, QQQ, and other benchmarks—visualize risk vs. return trade-offs</p>
+                  </div>
+                </div>
+                <div class="description-item">
+                  <div class="description-icon purple">
+                    <i class="fas fa-forward"></i>
+                  </div>
+                  <div class="description-content">
+                    <h3>Future Projections</h3>
+                    <p>Run Monte Carlo simulations to project your portfolio's potential value 5 years forward based on historical performance</p>
+                  </div>
+                </div>
+                <div class="description-item">
+                  <div class="description-icon cyan">
+                    <i class="fas fa-flask"></i>
+                  </div>
+                  <div class="description-content">
+                    <h3>What-If Analysis</h3>
+                    <p>Test alternate investment decisions—see what would have happened if you'd allocated differently or invested in other assets</p>
+                  </div>
+                </div>
               </div>
             </div>
-            <!-- Portfolio 2 Upload (Optional) -->
-            <div class="upload-card" id="uploadCard2">
-              <div class="upload-card-header">
-                <span class="upload-card-title">Portfolio 2</span>
-                <span class="upload-card-optional">(Optional)</span>
+
+            <div class="upload-modal-actions intro-actions">
+              <button id="uploadNextBtn" class="btn-primary btn-large">
+                <i class="fas fa-arrow-right"></i> Next: Upload CSV
+              </button>
+            </div>
+          </section>
+
+          <section id="uploadStepCsv" class="upload-step-section">
+            <div class="upload-section-header">
+              <i class="fas fa-cloud-upload-alt"></i>
+              <h3>Upload Your Portfolio Data</h3>
+              <p>Upload Robinhood account activity CSV exports to begin your analysis</p>
+            </div>
+
+            <div class="upload-step-actions">
+              <button id="uploadBackBtn" class="btn-secondary" type="button">
+                <i class="fas fa-arrow-left"></i> Back
+              </button>
+              <button id="showCsvHelpBtn" class="btn-secondary" type="button">
+                <i class="fas fa-circle-info"></i> How to get Robinhood CSV
+              </button>
+            </div>
+            
+            <div class="upload-cards">
+              <div class="upload-card" id="uploadCard1">
+                <div class="upload-card-header">
+                  <span class="upload-card-title">Portfolio 1</span>
+                </div>
+                <input id="portfolioName1" type="text" class="portfolio-name-input" placeholder="Portfolio 1" value="Portfolio 1" />
+                <p class="upload-card-status" id="upload1Status">No file selected</p>
+                <input id="csvUpload1" type="file" accept=".csv" hidden />
+                <div class="upload-card-buttons">
+                  <button id="uploadBtn1" class="btn-upload-card">
+                    <i class="fas fa-folder-open"></i> Choose CSV
+                  </button>
+                  <button id="useSampleBtn1" class="btn-sample-small">
+                    <i class="fas fa-flask"></i> Use Sample
+                  </button>
+                </div>
               </div>
-              <input id="portfolioName2" type="text" class="portfolio-name-input" placeholder="Portfolio 2" value="Portfolio 2" />
-              <p class="upload-card-status optional-text" id="upload2Status">No file selected</p>
-              <input id="csvUpload2" type="file" accept=".csv" hidden />
-              <div class="upload-card-buttons">
-                <button id="uploadBtn2" class="btn-upload-card">
-                  <i class="fas fa-folder-open"></i> Choose CSV
-                </button>
-                <button id="useSampleBtn2" class="btn-sample-small">
-                  <i class="fas fa-flask"></i> Use Sample
-                </button>
+              <div class="upload-card" id="uploadCard2">
+                <div class="upload-card-header">
+                  <span class="upload-card-title">Portfolio 2</span>
+                  <span class="upload-card-optional">(Optional)</span>
+                </div>
+                <input id="portfolioName2" type="text" class="portfolio-name-input" placeholder="Portfolio 2" value="Portfolio 2" />
+                <p class="upload-card-status optional-text" id="upload2Status">No file selected</p>
+                <input id="csvUpload2" type="file" accept=".csv" hidden />
+                <div class="upload-card-buttons">
+                  <button id="uploadBtn2" class="btn-upload-card">
+                    <i class="fas fa-folder-open"></i> Choose CSV
+                  </button>
+                  <button id="useSampleBtn2" class="btn-sample-small">
+                    <i class="fas fa-flask"></i> Use Sample
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-          
-          <div class="sample-info">
-            <i class="fas fa-info-circle"></i>
-            <span>Sample: $300/mo DCA into 70% VOO, 10% QQQ, 10% SLV, 5% GLD, 3% CVNA, 2% META</span>
-          </div>
-          
-          <div class="upload-modal-actions">
-            <button id="startAnalysisBtn" class="btn-primary btn-large" disabled>
-              <i class="fas fa-rocket"></i> Start Analysis
-            </button>
-            <p class="upload-hint">Upload at least Portfolio 1 to begin</p>
+            
+            <div class="sample-info">
+              <i class="fas fa-info-circle"></i>
+              <span>Sample: $300/mo DCA into 70% VOO, 10% QQQ, 10% SLV, 5% GLD, 3% CVNA, 2% META</span>
+            </div>
+            
+            <div class="upload-modal-actions">
+              <button id="startAnalysisBtn" class="btn-primary btn-large" disabled>
+                <i class="fas fa-rocket"></i> Start Analysis
+              </button>
+              <p class="upload-hint">Upload at least Portfolio 1 to begin</p>
+            </div>
+          </section>
+
+          <div id="csvHelpModal" class="csv-help-modal" aria-hidden="true">
+            <div id="csvHelpBackdrop" class="csv-help-backdrop"></div>
+            <div class="csv-help-panel">
+              <div class="csv-help-header">
+                <h3>How to get your Robinhood CSV</h3>
+                <button id="closeCsvHelpBtn" type="button" class="info-sheet-close" aria-label="Close Robinhood CSV instructions">
+                  <i class="fas fa-times"></i>
+                </button>
+              </div>
+              <div class="csv-help-body">
+                <p>Based on Robinhood’s help center, use an <strong>Account activity report</strong> CSV rather than a monthly statement PDF.</p>
+                <ol>
+                  <li>Open Robinhood and go to <strong>Account</strong>.</li>
+                  <li>Open <strong>Reports and statements</strong>.</li>
+                  <li>Choose <strong>Account activity report</strong> or <strong>Reports</strong>.</li>
+                  <li>Select <strong>Generate new report</strong>.</li>
+                  <li>Choose your account type and date range, then generate the report.</li>
+                  <li>Wait for Robinhood to finish preparing it, then download the CSV from <strong>Reports</strong>.</li>
+                </ol>
+                <p class="csv-help-note">Robinhood says most reports are ready within a couple of hours, but they can take up to 24 hours. Futures, crypto, and spending activity may not be included in the investing account activity report.</p>
+                <p class="csv-help-note">Source: Robinhood Help Center, “Finding your reports and statements”.</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -170,7 +219,7 @@
         <!-- Top Bar -->
         <header class="topbar">
           <div class="topbar-left">
-            <h1>Dashboard</h1>
+            <h1 id="dashboardHeading" tabindex="-1">Dashboard</h1>
             <div class="breadcrumb">
               <span id="activeYearsPill" class="badge">5Y</span>
               <span id="sampleBadge" class="sample-badge" style="display: none;">

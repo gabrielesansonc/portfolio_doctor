@@ -1496,6 +1496,52 @@ span.section-info-icon:hover::before {
   margin-bottom: 32px;
 }
 
+.upload-step-indicator {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.upload-step-pill {
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.upload-step-pill.active {
+  background: var(--accent-blue-bg);
+  border-color: rgba(59, 130, 246, 0.32);
+  color: var(--accent-blue);
+}
+
+.upload-step-section {
+  display: none;
+}
+
+.upload-step-section.active {
+  display: block;
+}
+
+.why-copy {
+  margin-bottom: 24px;
+}
+
+.why-copy h3 {
+  font-size: 1.1rem;
+  margin-bottom: 8px;
+}
+
+.why-copy p {
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
 .upload-modal-header i {
   font-size: 3rem;
   background: var(--gradient-primary);
@@ -1611,6 +1657,14 @@ span.section-info-icon:hover::before {
 .upload-section-header p {
   font-size: 0.875rem;
   color: var(--text-secondary);
+}
+
+.upload-step-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
 }
 
 .upload-cards {
@@ -1904,6 +1958,74 @@ span.section-info-icon:hover::before {
   margin-top: 12px;
   font-size: 0.85rem;
   color: var(--text-muted);
+}
+
+.intro-actions {
+  margin-top: 28px;
+}
+
+.csv-help-modal {
+  display: none;
+}
+
+.csv-help-modal.active {
+  display: block;
+}
+
+.csv-help-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 17, 23, 0.78);
+  z-index: 1300;
+}
+
+.csv-help-panel {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(640px, calc(100vw - 32px));
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  box-shadow: var(--shadow-lg);
+  z-index: 1301;
+  padding: 20px 22px;
+  max-height: min(80vh, 720px);
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.csv-help-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.csv-help-header h3 {
+  font-size: 1.05rem;
+}
+
+.csv-help-body {
+  color: var(--text-secondary);
+  line-height: 1.65;
+}
+
+.csv-help-body ol {
+  padding-left: 20px;
+  margin: 14px 0;
+}
+
+.csv-help-body li + li {
+  margin-top: 8px;
+}
+
+.csv-help-note {
+  font-size: 0.84rem;
+  color: var(--text-muted);
+  margin-top: 12px;
 }
 
 /* ===== Portfolio Tabs ===== */
@@ -2289,6 +2411,22 @@ span.section-info-icon:hover::before {
 
   .sample-info {
     font-size: 0.78rem;
+  }
+
+  .upload-step-actions {
+    flex-direction: column;
+  }
+
+  .csv-help-panel {
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    transform: none;
+    border-radius: 24px 24px 0 0;
+    padding: 18px 16px calc(24px + var(--safe-area-bottom));
+    max-height: min(78vh, calc(100dvh - 32px - var(--safe-area-top)));
   }
 }
 
