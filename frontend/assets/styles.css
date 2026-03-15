@@ -1247,9 +1247,11 @@ body {
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   padding: 40px;
-  max-width: 700px;
+  max-width: 900px;
   width: 100%;
   box-shadow: var(--shadow-lg);
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
 .upload-modal-header {
@@ -1267,7 +1269,7 @@ body {
 }
 
 .upload-modal-header h2 {
-  font-size: 1.75rem;
+  font-size: 2rem;
   font-weight: 700;
   margin-bottom: 8px;
 }
@@ -1275,6 +1277,103 @@ body {
 .upload-modal-header p {
   color: var(--text-secondary);
   font-size: 0.95rem;
+}
+
+.upload-subtitle {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* App Description Section */
+.app-description {
+  margin-bottom: 40px;
+  padding: 24px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+}
+
+.description-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+.description-item {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.description-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.description-icon.blue {
+  background: var(--accent-blue-bg);
+  color: var(--accent-blue);
+}
+
+.description-icon.green {
+  background: var(--accent-green-bg);
+  color: var(--accent-green);
+}
+
+.description-icon.purple {
+  background: var(--accent-purple-bg);
+  color: var(--accent-purple);
+}
+
+.description-icon.cyan {
+  background: rgba(6, 182, 212, 0.12);
+  color: var(--accent-cyan);
+}
+
+.description-content h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: var(--text-primary);
+}
+
+.description-content p {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* Upload Section Header */
+.upload-section-header {
+  text-align: center;
+  margin-bottom: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-color);
+}
+
+.upload-section-header i {
+  font-size: 2rem;
+  color: var(--accent-blue);
+  margin-bottom: 8px;
+}
+
+.upload-section-header h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.upload-section-header p {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
 }
 
 .upload-cards {
@@ -1922,6 +2021,23 @@ body {
   
   .upload-modal {
     padding: 24px;
+    max-width: 95%;
+  }
+
+  .description-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .upload-modal-header h2 {
+    font-size: 1.5rem;
+  }
+  
+  .description-content h3 {
+    font-size: 0.95rem;
+  }
+  
+  .description-content p {
+    font-size: 0.8rem;
   }
 }
 
@@ -1932,6 +2048,10 @@ body {
   
   .compare-delta-column {
     order: -1;
+  }
+  
+  .description-grid {
+    grid-template-columns: 1fr;
   }
 }
 
