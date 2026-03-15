@@ -2,7 +2,15 @@
 
 ## Architecture Overview
 
-This is a **FastAPI + vanilla JS** portfolio analysis dashboard with GBM simulation. Key data flow:
+This is a **FastAPI + vanilla JS** portfolio analysis dashboard with GBM simulation.
+
+### Production Deployment
+- **Frontend + Backend**: Render (`https://portfolio-doctor.onrender.com`) - serves everything
+- **Alternative Frontend**: Vercel (optional, calls Render API)
+- **Repository**: `https://github.com/gabrielesansonc/portfolio_doctor.git` (branch: `main`)
+- **Auto-deploy**: Both Render and Vercel auto-deploy on `git push origin main`
+
+### Key Data Flow
 1. User uploads Robinhood CSV → `POST /api/upload-csv` → saved to `data/`
 2. Analysis request → `POST /api/analyze` → `helper.py` processes trades, fetches prices via yfinance
 3. Response contains metrics, value history, holdings → frontend renders ApexCharts
@@ -12,20 +20,83 @@ This is a **FastAPI + vanilla JS** portfolio analysis dashboard with GBM simulat
 **Critical files:**
 - `helper.py` (root): All financial math - returns, volatility, Sharpe, Sortino, beta, XIRR
 - `backend/app/main.py`: FastAPI endpoints, calls helper functions
-- `frontend/assets/app.js`: State management, chart rendering, API calls (~1740 lines)
+- `frontend/assets/app.js`: State management, chart rendering, API calls (~2100 lines)
 - `frontend/assets/styles.css`: Dark fintech theme with CSS variables (~1700 lines)
 - `frontend/index.html`: HTML structure with dual-view support (~700 lines)
 
 **⚠️ File location note**: Frontend files are in `frontend/assets/`, NOT `frontend/` root.
 
-## Developer Workflow
+## Development vs Production
 
+### API URL Detection (frontend/assets/app.js)
+The app automatically detects where it's running:
+```javascript
+const API_BASE_URL = (() => {
+  if (hostname.includes('vercel.app')) return 'https://portfolio-doctor.onrender.com';
+  if (hostname.includes('onrender.com')) return '';  // same origin (relative URLs)
+  return 'http://localhost:8000';  // local development
+})();
+```
+
+| Environment | URL | API Calls |
+|-------------|-----|-----------|
+| Local dev | `http://localhost:8000` | `http://localhost:8000/api/*` |
+| Render | `portfolio-doctor.onrender.com` | `/api/*` (same origin) |
+| Vercel | `*.vercel.app` | `https://portfolio-doctor.onrender.com/api/*` |
+
+### Local Development Workflow
 ```bash
 # Start server (from project root)
 cd /Users/gabrielsanson/Desktop/portfolio_dashboard
+source venv/bin/activate
 uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
 
 # Access at http://localhost:8000
+```
+
+### Deploying Changes to Production
+```bash
+# Test locally first, then push
+git add .
+git commit -m "Your descriptive message"
+git push origin main
+
+# Render auto-deploys in ~2-3 minutes
+# Check status at: https://dashboard.render.com
+```
+
+## Render Configuration
+
+### Settings (in Render Dashboard)
+- **Build Command**: `pip install -r backend/requirements.txt`
+- **Start Command**: `gunicorn -w 4 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:$PORT backend.app.main:app`
+- **Root Directory**: (leave empty - uses repo root)
+- **Python Version**: 3.14.3
+
+### Requirements (backend/requirements.txt)
+```
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+gunicorn>=21.0.0
+yfinance>=0.2.50
+python-multipart>=0.0.9
+pandas>=2.0.0
+numpy>=1.24.0
+pydantic>=2.0.0
+```
+
+**⚠️ Critical**: Each package must be on its own line! Missing newlines cause build failures.
+
+### CORS Configuration (backend/app/main.py)
+```python
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://localhost:8000", 
+                   "https://*.vercel.app", "https://*.onrender.com"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 ```
 
 ## Tab Architecture (Critical to Understand)
@@ -277,3 +348,47 @@ Separate tab that simulates adding $X to 50+ ETFs:
 - Results show impact on Sharpe, Sortino, volatility
 - UI in `index.html` under `#tab-testlab`
 - Fixed frontend/backend property mismatch: use `all_results` not `results`
+
+## Deployment Troubleshooting
+
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| Render build fails | Missing newline in requirements.txt | Ensure each package on its own line |
+| Render 500 error | Wrong start command (missing uvicorn worker) | Use `-k uvicorn.workers.UvicornWorker` |
+| Frontend calls localhost in production | Browser cached old JS | Hard refresh: `Cmd+Shift+R` |
+| CORS errors | Missing origin in allow_origins | Add domain to CORS middleware |
+| API returns 404 on Render | Using relative path without API_BASE_URL | All fetch calls must use `${API_BASE_URL}/api/...` |
+| Render shows frontend but API fails | gunicorn without ASGI worker | FastAPI needs uvicorn workers |
+
+### Useful Commands
+```bash
+# Check if Render backend is healthy
+curl https://portfolio-doctor.onrender.com/api/health
+
+# View what JS Render is serving
+curl -s https://portfolio-doctor.onrender.com/assets/app.js | head -20
+
+# Check recent commits
+git log --oneline -5
+
+# Force browser cache clear
+# Mac: Cmd+Shift+R or DevTools → Network → Disable cache
+```
+
+## File Structure
+```
+portfolio_dashboard/
+├── helper.py                 # Financial calculations (root level!)
+├── backend/
+│   ├── requirements.txt      # Python dependencies for Render
+│   └── app/
+│       └── main.py          # FastAPI app and all endpoints
+├── frontend/
+│   ├── index.html           # Main HTML (served by backend)
+│   └── assets/
+│       ├── app.js           # All JS logic (~2100 lines)
+│       └── styles.css       # Dark theme styles
+├── data/                    # Uploaded CSV files (gitignored except .gitkeep)
+└── .github/
+    └── copilot-instructions.md  # This file
+```
