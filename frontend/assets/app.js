@@ -2117,7 +2117,7 @@ function bindEvents() {
 async function init() {
   try {
     // Load defaults
-    const defaultsRes = await fetch('/api/defaults');
+    const defaultsRes = await fetch(`${API_BASE_URL}/api/defaults`);
     const defaults = await defaultsRes.json();
     state.defaults = defaults;
 
