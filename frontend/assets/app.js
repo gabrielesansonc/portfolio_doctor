@@ -2,14 +2,9 @@
 
 // API Configuration - supports both local and production environments
 const API_BASE_URL = (() => {
-  // In production (Vercel), use environment variable
-  if (typeof process !== 'undefined' && process.env?.VITE_API_URL) {
-    return process.env.VITE_API_URL;
-  }
-  // Fallback: If on Vercel domain, try to infer backend URL
+  // Production: hardcode Render URL
   if (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')) {
-    // In production, backend URL should be set via env var above
-    return 'https://portfolio-api.onrender.com'; // Default - override with env var
+    return 'https://portfolio-doctor.onrender.com';
   }
   // Local development
   return 'http://localhost:8000';
