@@ -1,6 +1,6 @@
 {
-  "buildCommand": "echo 'Static files ready'",
-  "outputDirectory": "./frontend",
+  "buildCommand": "echo 'Static site'",
+  "outputDirectory": "public",
   "cleanUrls": true,
   "trailingSlash": false
 }
