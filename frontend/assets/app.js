@@ -72,6 +72,39 @@ const COLORS = {
 
 const CHART_COLORS = [COLORS.primary, COLORS.green, COLORS.orange, COLORS.purple, COLORS.red, COLORS.cyan, COLORS.pink, COLORS.lime];
 
+function isTabletLayout() {
+  return typeof window !== 'undefined' && window.matchMedia('(max-width: 900px)').matches;
+}
+
+function isPhoneLayout() {
+  return typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches;
+}
+
+function getChartLayoutConfig() {
+  const phone = isPhoneLayout();
+  const tablet = isTabletLayout();
+
+  return {
+    phone,
+    tablet,
+    areaHeight: phone ? 300 : 350,
+    donutHeight: phone ? 300 : 350,
+    smallDonutHeight: phone ? 190 : 180,
+    scatterHeight: phone ? 320 : 350,
+    simHeight: phone ? 320 : 400,
+    tickAmount: phone ? 4 : 6,
+    timeSeriesTicks: phone ? 4 : 10,
+    rotateLabels: phone ? 0 : -45,
+    showToolbar: !tablet,
+    showScatterLabels: !tablet,
+    showLegend: !phone,
+  };
+}
+
+function isTouchInfoMode() {
+  return typeof window !== 'undefined' && window.matchMedia('(hover: none), (pointer: coarse)').matches;
+}
+
 // DOM Elements
 const el = {
   // Upload overlay
@@ -215,6 +248,11 @@ const el = {
   simFinal95: document.getElementById('simFinal95'),
   simFinalMin: document.getElementById('simFinalMin'),
   simFinalMax: document.getElementById('simFinalMax'),
+  infoSheet: document.getElementById('infoSheet'),
+  infoSheetBackdrop: document.getElementById('infoSheetBackdrop'),
+  infoSheetClose: document.getElementById('infoSheetClose'),
+  infoSheetTitle: document.getElementById('infoSheetTitle'),
+  infoSheetBody: document.getElementById('infoSheetBody'),
 };
 
 // ===== Utility Functions =====
@@ -342,7 +380,7 @@ function switchTab(tabName) {
   state.currentTab = tabName;
   
   // Update nav items
-  document.querySelectorAll('.nav-item').forEach((item) => {
+  document.querySelectorAll('[data-tab]').forEach((item) => {
     item.classList.toggle('active', item.dataset.tab === tabName);
   });
   
@@ -379,6 +417,64 @@ function switchPortfolioView(view) {
       if (chart) chart.resize();
     });
   }, 100);
+}
+
+function openInfoSheet(title, body) {
+  if (!el.infoSheet || !el.infoSheetTitle || !el.infoSheetBody) return;
+  el.infoSheetTitle.textContent = title || 'Info';
+  el.infoSheetBody.textContent = body || '';
+  el.infoSheet.classList.add('active');
+  el.infoSheet.setAttribute('aria-hidden', 'false');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeInfoSheet() {
+  if (!el.infoSheet) return;
+  el.infoSheet.classList.remove('active');
+  el.infoSheet.setAttribute('aria-hidden', 'true');
+  document.body.style.overflow = '';
+}
+
+function getInfoPayload(node) {
+  if (!node) return null;
+
+  const directText = node.getAttribute('data-tooltip') || node.getAttribute('data-tooltip-text') || node.getAttribute('title');
+  if (!directText) return null;
+
+  let title = 'Info';
+  if (node.classList.contains('metric-card')) {
+    title = node.querySelector('.metric-label')?.textContent?.trim() || 'Metric details';
+  } else if (node.classList.contains('section-info-icon')) {
+    title = node.closest('.card-header')?.querySelector('h2')?.textContent?.replace('ⓘ', '').trim() || 'Section details';
+  } else if (node.classList.contains('sim-formula-value')) {
+    title = 'Simulation model';
+  }
+
+  return { title, body: directText };
+}
+
+function bindTouchInfoSheets() {
+  if (!isTouchInfoMode()) return;
+
+  document.querySelectorAll('.metric-card[data-tooltip], .section-info-icon[data-tooltip-text], .sim-formula-value[title]').forEach((node) => {
+    node.addEventListener('click', (event) => {
+      event.preventDefault();
+      const payload = getInfoPayload(node);
+      if (payload) openInfoSheet(payload.title, payload.body);
+    });
+  });
+
+  if (el.infoSheetClose) {
+    el.infoSheetClose.addEventListener('click', closeInfoSheet);
+  }
+
+  if (el.infoSheetBackdrop) {
+    el.infoSheetBackdrop.addEventListener('click', closeInfoSheet);
+  }
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeInfoSheet();
+  });
 }
 
 // ===== Chip/Tag Management =====
@@ -439,11 +535,13 @@ function renderTable(target, rows, columns, allowHtml = false) {
 
 // ===== Base Chart Options =====
 function getBaseChartOptions() {
+  const layout = getChartLayoutConfig();
+
   return {
     chart: {
       background: 'transparent',
       fontFamily: 'Inter, sans-serif',
-      toolbar: { show: true, tools: { download: true, selection: false, zoom: false, zoomin: false, zoomout: false, pan: false, reset: false } },
+      toolbar: { show: layout.showToolbar, tools: { download: true, selection: false, zoom: false, zoomin: false, zoomout: false, pan: false, reset: false } },
       animations: { enabled: true, speed: 400 },
     },
     theme: { mode: 'dark' },
@@ -459,6 +557,7 @@ function getBaseChartOptions() {
 
 // ===== Chart Rendering =====
 function renderValueChart(portfolioNum, data) {
+  const layout = getChartLayoutConfig();
   const chartName = `value${portfolioNum}`;
   destroyChart(chartName);
   const container = document.getElementById(`valueChart${portfolioNum}`);
@@ -483,13 +582,28 @@ function renderValueChart(portfolioNum, data) {
 
   const options = {
     ...getBaseChartOptions(),
-    chart: { ...getBaseChartOptions().chart, type: 'area', height: 350 },
+    chart: { ...getBaseChartOptions().chart, type: 'area', height: layout.areaHeight },
     series,
-    xaxis: { ...getBaseChartOptions().xaxis, categories, tickAmount: Math.min(10, categories.length), labels: { rotate: -45 } },
+    xaxis: {
+      ...getBaseChartOptions().xaxis,
+      categories,
+      tickAmount: Math.min(layout.timeSeriesTicks, categories.length),
+      labels: {
+        ...getBaseChartOptions().xaxis.labels,
+        rotate: layout.rotateLabels,
+        hideOverlappingLabels: true,
+      },
+    },
     yaxis: { ...getBaseChartOptions().yaxis, labels: { formatter: (v) => `$${v.toLocaleString()}` } },
     fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.05, stops: [0, 90, 100] } },
     dataLabels: { enabled: false },
     tooltip: { ...getBaseChartOptions().tooltip, y: { formatter: (v) => `$${v.toLocaleString()}` } },
+    legend: {
+      ...getBaseChartOptions().legend,
+      position: layout.phone ? 'bottom' : 'top',
+      horizontalAlign: layout.phone ? 'center' : 'left',
+      show: layout.showLegend || series.length <= 2,
+    },
   };
 
   state.charts[chartName] = new ApexCharts(container, options);
@@ -497,6 +611,7 @@ function renderValueChart(portfolioNum, data) {
 }
 
 function renderHoldingsChart(portfolioNum, holdings, chartId = null) {
+  const layout = getChartLayoutConfig();
   const chartName = chartId || `holdings${portfolioNum}`;
   destroyChart(chartName);
   const containerId = chartId ? chartId : `holdingsChart${portfolioNum}`;
@@ -573,7 +688,7 @@ function renderHoldingsChart(portfolioNum, holdings, chartId = null) {
 
   const options = {
     ...getBaseChartOptions(),
-    chart: { ...getBaseChartOptions().chart, type: 'donut', height: 350 },
+    chart: { ...getBaseChartOptions().chart, type: 'donut', height: layout.donutHeight },
     series: data,
     labels: labels,
     colors: chartColors,
@@ -597,7 +712,12 @@ function renderHoldingsChart(portfolioNum, holdings, chartId = null) {
         },
       },
     },
-    legend: { ...getBaseChartOptions().legend, position: 'bottom', horizontalAlign: 'center' },
+    legend: {
+      ...getBaseChartOptions().legend,
+      position: 'bottom',
+      horizontalAlign: 'center',
+      fontSize: layout.phone ? '11px' : '12px',
+    },
     dataLabels: { enabled: false },
     tooltip: {
       ...getBaseChartOptions().tooltip,
@@ -624,6 +744,7 @@ function renderHoldingsChart(portfolioNum, holdings, chartId = null) {
 }
 
 function renderScatterChart(portfolioNum, data) {
+  const layout = getChartLayoutConfig();
   const chartName = `scatter${portfolioNum}`;
   destroyChart(chartName);
   const container = document.getElementById(`scatterChart${portfolioNum}`);
@@ -658,14 +779,14 @@ function renderScatterChart(portfolioNum, data) {
 
   const options = {
     ...getBaseChartOptions(),
-    chart: { ...getBaseChartOptions().chart, type: 'scatter', height: 350 },
+    chart: { ...getBaseChartOptions().chart, type: 'scatter', height: layout.scatterHeight },
     series: seriesData,
     colors: [COLORS.primary, COLORS.orange],
     stroke: { width: 0 },
     xaxis: {
       type: 'numeric',
       title: { text: 'Volatility (%)', style: { color: '#94a3b8' } },
-      tickAmount: 6,
+      tickAmount: layout.tickAmount,
       labels: { style: { colors: '#94a3b8', fontSize: '11px' }, formatter: (v) => `${parseFloat(v).toFixed(0)}%` },
       axisBorder: { color: '#2a2e38' },
       axisTicks: { color: '#2a2e38' },
@@ -675,15 +796,15 @@ function renderScatterChart(portfolioNum, data) {
       labels: { style: { colors: '#94a3b8', fontSize: '11px' }, formatter: (v) => `${parseFloat(v).toFixed(0)}%` },
     },
     grid: { borderColor: '#2a2e38', strokeDashArray: 4 },
-    markers: { size: [14, 10], strokeWidth: 0, hover: { size: 16 } },
+    markers: { size: layout.phone ? [10, 8] : [14, 10], strokeWidth: 0, hover: { size: layout.phone ? 12 : 16 } },
     dataLabels: {
-      enabled: true,
+      enabled: layout.showScatterLabels,
       formatter: (val, opts) => {
         const point = opts.w.config.series[opts.seriesIndex].data[opts.dataPointIndex];
         return point?.label || '';
       },
       offsetY: -12,
-      style: { fontSize: '10px', fontWeight: 600, colors: ['#f1f5f9'] },
+      style: { fontSize: layout.phone ? '9px' : '10px', fontWeight: 600, colors: ['#f1f5f9'] },
       background: { enabled: true, foreColor: '#1a1d24', padding: 4, borderRadius: 2, borderWidth: 0, opacity: 0.8 },
     },
     tooltip: {
@@ -692,7 +813,7 @@ function renderScatterChart(portfolioNum, data) {
         return `<div class="scatter-tooltip"><strong>${point.label}</strong><br/>Return: ${point.y.toFixed(2)}%<br/>Vol: ${point.x.toFixed(2)}%</div>`;
       },
     },
-    legend: { position: 'bottom', horizontalAlign: 'center', labels: { colors: '#f1f5f9' } },
+    legend: { show: !layout.phone, position: 'bottom', horizontalAlign: 'center', labels: { colors: '#f1f5f9' } },
   };
 
   state.charts[chartName] = new ApexCharts(container, options);
@@ -986,6 +1107,7 @@ function renderDualMetrics(data1, data2) {
 }
 
 function renderDualValueChart(data1, data2) {
+  const layout = getChartLayoutConfig();
   destroyChart('dualValue');
   const container = document.getElementById('dualValueChart');
   
@@ -1058,16 +1180,30 @@ function renderDualValueChart(data1, data2) {
 
   const options = {
     ...getBaseChartOptions(),
-    chart: { ...getBaseChartOptions().chart, type: 'area', height: 350 },
+    chart: { ...getBaseChartOptions().chart, type: 'area', height: layout.areaHeight },
     series,
     colors: [COLORS.primary, COLORS.purple, COLORS.green, COLORS.orange, COLORS.cyan],
-    xaxis: { ...getBaseChartOptions().xaxis, categories: allDates, tickAmount: Math.min(10, allDates.length), labels: { rotate: -45 } },
+    xaxis: {
+      ...getBaseChartOptions().xaxis,
+      categories: allDates,
+      tickAmount: Math.min(layout.timeSeriesTicks, allDates.length),
+      labels: {
+        ...getBaseChartOptions().xaxis.labels,
+        rotate: layout.rotateLabels,
+        hideOverlappingLabels: true,
+      },
+    },
     yaxis: { ...getBaseChartOptions().yaxis, labels: { formatter: (v) => `$${v.toLocaleString()}` } },
     fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.05, stops: [0, 90, 100] } },
     stroke: { curve: 'smooth', width: 2 },
     dataLabels: { enabled: false },
     tooltip: { ...getBaseChartOptions().tooltip, y: { formatter: (v) => `$${v.toLocaleString()}` } },
-    legend: { position: 'bottom', horizontalAlign: 'center', labels: { colors: '#f1f5f9' } },
+    legend: {
+      show: layout.showLegend || series.length <= 3,
+      position: 'bottom',
+      horizontalAlign: 'center',
+      labels: { colors: '#f1f5f9' },
+    },
   };
 
   state.charts.dualValue = new ApexCharts(container, options);
@@ -1081,6 +1217,7 @@ function renderDualHoldingsCharts(data1, data2) {
 }
 
 function renderSmallHoldingsChart(chartId, holdings, accentColor) {
+  const layout = getChartLayoutConfig();
   destroyChart(chartId);
   const containerId = chartId.includes('1') ? 'dualHoldingsChart1' : 'dualHoldingsChart2';
   const container = document.getElementById(containerId);
@@ -1126,7 +1263,7 @@ function renderSmallHoldingsChart(chartId, holdings, accentColor) {
   }
 
   const options = {
-    chart: { type: 'donut', height: 180, background: 'transparent' },
+    chart: { type: 'donut', height: layout.smallDonutHeight, background: 'transparent' },
     series: data,
     labels: labels,
     colors: chartColors,
@@ -1225,6 +1362,7 @@ function renderDualBenchmarkTable(data1, data2) {
 }
 
 function renderDualScatterChart(data1, data2) {
+  const layout = getChartLayoutConfig();
   destroyChart('dualScatter');
   const container = document.getElementById('dualScatterChart');
   
@@ -1279,14 +1417,14 @@ function renderDualScatterChart(data1, data2) {
 
   const options = {
     ...getBaseChartOptions(),
-    chart: { ...getBaseChartOptions().chart, type: 'scatter', height: 350 },
+    chart: { ...getBaseChartOptions().chart, type: 'scatter', height: layout.scatterHeight },
     series: seriesData,
     colors: [COLORS.primary, COLORS.purple, COLORS.orange],
     stroke: { width: 0 },
     xaxis: {
       type: 'numeric',
       title: { text: 'Volatility (%)', style: { color: '#94a3b8' } },
-      tickAmount: 6,
+      tickAmount: layout.tickAmount,
       labels: { style: { colors: '#94a3b8', fontSize: '11px' }, formatter: (v) => `${parseFloat(v).toFixed(0)}%` },
       axisBorder: { color: '#2a2e38' },
       axisTicks: { color: '#2a2e38' },
@@ -1296,15 +1434,15 @@ function renderDualScatterChart(data1, data2) {
       labels: { style: { colors: '#94a3b8', fontSize: '11px' }, formatter: (v) => `${parseFloat(v).toFixed(0)}%` },
     },
     grid: { borderColor: '#2a2e38', strokeDashArray: 4 },
-    markers: { size: [14, 14, 8], strokeWidth: 0, hover: { size: 16 } },
+    markers: { size: layout.phone ? [10, 10, 7] : [14, 14, 8], strokeWidth: 0, hover: { size: layout.phone ? 12 : 16 } },
     dataLabels: {
-      enabled: true,
+      enabled: layout.showScatterLabels,
       formatter: (val, opts) => {
         const point = opts.w.config.series[opts.seriesIndex].data[opts.dataPointIndex];
         return point?.label || '';
       },
       offsetY: -12,
-      style: { fontSize: '10px', fontWeight: 600, colors: ['#f1f5f9'] },
+      style: { fontSize: layout.phone ? '9px' : '10px', fontWeight: 600, colors: ['#f1f5f9'] },
       background: { enabled: true, foreColor: '#1a1d24', padding: 4, borderRadius: 2, borderWidth: 0, opacity: 0.8 },
     },
     tooltip: {
@@ -1313,7 +1451,7 @@ function renderDualScatterChart(data1, data2) {
         return `<div class="scatter-tooltip"><strong>${point.label}</strong><br/>Return: ${point.y.toFixed(2)}%<br/>Vol: ${point.x.toFixed(2)}%</div>`;
       },
     },
-    legend: { position: 'bottom', horizontalAlign: 'center', labels: { colors: '#f1f5f9' } },
+    legend: { show: !layout.phone, position: 'bottom', horizontalAlign: 'center', labels: { colors: '#f1f5f9' } },
   };
 
   state.charts.dualScatter = new ApexCharts(container, options);
@@ -1716,9 +1854,9 @@ function renderSimulationChart(simData, currentValue) {
   const options = {
     chart: {
       type: 'line',
-      height: 400,
+      height: getChartLayoutConfig().simHeight,
       background: 'transparent',
-      toolbar: { show: true, tools: { download: true, zoom: true, pan: true, reset: true } },
+      toolbar: { show: !getChartLayoutConfig().tablet, tools: { download: true, zoom: true, pan: true, reset: true } },
       animations: { enabled: false },
     },
     series: series,
@@ -1756,9 +1894,9 @@ function renderSimulationChart(simData, currentValue) {
       strokeDashArray: 3,
     },
     legend: {
-      show: true,
-      position: 'top',
-      horizontalAlign: 'left',
+      show: !getChartLayoutConfig().phone,
+      position: getChartLayoutConfig().phone ? 'bottom' : 'top',
+      horizontalAlign: getChartLayoutConfig().phone ? 'center' : 'left',
       labels: { colors: '#94a3b8' },
       itemMargin: { horizontal: 10 },
       showForSingleSeries: true,
@@ -1875,7 +2013,7 @@ function wireChipHandlers() {
 // ===== Event Bindings =====
 function bindEvents() {
   // Tab navigation
-  document.querySelectorAll('.nav-item[data-tab]').forEach((item) => {
+  document.querySelectorAll('[data-tab]').forEach((item) => {
     item.addEventListener('click', (e) => {
       e.preventDefault();
       switchTab(item.dataset.tab);
@@ -2140,8 +2278,19 @@ async function init() {
     state.portfolio2.benchmarks = [...defaultBenchmarks];
     state.portfolio2.scatterTickers = [...defaultScatter];
 
+    document.querySelectorAll('.metric-card[data-tooltip], .section-info-icon[data-tooltip-text], .sim-formula-value[title]').forEach((node) => {
+      const fallbackText = node.getAttribute('data-tooltip') || node.getAttribute('data-tooltip-text') || node.getAttribute('title');
+      if (fallbackText && !node.getAttribute('aria-label')) {
+        node.setAttribute('aria-label', fallbackText);
+      }
+      if (fallbackText && !node.getAttribute('title')) {
+        node.setAttribute('title', fallbackText);
+      }
+    });
+
     wireChipHandlers();
     bindEvents();
+    bindTouchInfoSheets();
     
     // Show upload overlay (no default CSV)
     el.uploadOverlay.classList.add('active');

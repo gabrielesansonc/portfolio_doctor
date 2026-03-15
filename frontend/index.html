@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>NotFinancialAdvice</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -36,6 +36,21 @@
         </a>
       </nav>
     </aside>
+
+    <nav class="mobile-nav" aria-label="Primary">
+      <button type="button" class="mobile-nav-item active" data-tab="dashboard">
+        <i class="fas fa-th-large"></i>
+        <span>Dashboard</span>
+      </button>
+      <button type="button" class="mobile-nav-item" data-tab="simulation">
+        <i class="fas fa-chart-line"></i>
+        <span>Simulation</span>
+      </button>
+      <button type="button" class="mobile-nav-item" data-tab="testlab">
+        <i class="fas fa-flask"></i>
+        <span>Test Lab</span>
+      </button>
+    </nav>
 
     <!-- Main Content -->
     <main class="main-content">
@@ -954,6 +969,20 @@
       </div>
 
     </main>
+  </div>
+
+  <div id="infoSheet" class="info-sheet" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="infoSheetTitle">
+    <div id="infoSheetBackdrop" class="info-sheet-backdrop"></div>
+    <div class="info-sheet-panel">
+      <div class="info-sheet-handle"></div>
+      <div class="info-sheet-header">
+        <h2 id="infoSheetTitle">Info</h2>
+        <button id="infoSheetClose" type="button" class="info-sheet-close" aria-label="Close info">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div id="infoSheetBody" class="info-sheet-body"></div>
+    </div>
   </div>
 
   <script src="/assets/app.js?v=20260308a"></script>
