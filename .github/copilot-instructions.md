@@ -2,10 +2,12 @@
 
 ## Architecture Overview
 
-This is a **FastAPI + vanilla JS** portfolio analysis dashboard. Key data flow:
+This is a **FastAPI + vanilla JS** portfolio analysis dashboard with GBM simulation. Key data flow:
 1. User uploads Robinhood CSV → `POST /api/upload-csv` → saved to `data/`
 2. Analysis request → `POST /api/analyze` → `helper.py` processes trades, fetches prices via yfinance
 3. Response contains metrics, value history, holdings → frontend renders ApexCharts
+4. GBM simulation → `POST /api/simulate` → projects portfolio value 5 years forward using weighted returns
+5. Sample portfolio generation → `POST /api/sample-portfolio/generate` → creates DCA CSV for testing
 
 **Critical files:**
 - `helper.py` (root): All financial math - returns, volatility, Sharpe, Sortino, beta, XIRR
@@ -26,14 +28,15 @@ uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
 # Access at http://localhost:8000
 ```
 
-## Dual View Architecture (Critical to Understand)
+## Tab Architecture (Critical to Understand)
 
-The app supports **1 or 2 portfolios**. This means MOST UI elements exist in triplicate:
+The app has **4 main tabs**: Upload, Analysis, Simulation, Test Lab. Analysis supports **1 or 2 portfolios** (dual view). This means MOST UI elements exist in triplicate:
 - **Portfolio 1**: `metricReturn1`, `valueChart1`, `spinnerValue1`
 - **Portfolio 2**: `metricReturn2`, `valueChart2`, `spinnerValue2`  
 - **Dual view**: `dualReturn1`, `dualReturn2`, `dualValueChart`, `spinnerDualValue`
+- **Simulation**: `simChart`, `simFinalMean`, `simParam*` (single instance per simulation)
 
-**When modifying UI, ALWAYS update all three contexts** or the feature will be incomplete.
+**When modifying UI, ALWAYS update all relevant contexts** or the feature will be incomplete.
 
 ### Finding Elements Pattern
 ```bash
@@ -128,7 +131,31 @@ state.charts[chartKey].render();
 spinnerValue1, spinnerHoldings1, spinnerScatter1
 spinnerValue2, spinnerHoldings2, spinnerScatter2
 spinnerDualValue, spinnerDualHoldings, spinnerDualScatter
+spinnerSim (simulation chart)
 ```
+
+## GBM Simulation Features
+
+### Backend Implementation (`backend/app/main.py`)
+- `POST /api/simulate`: Takes portfolio data and runs geometric Brownian motion simulation
+- Uses weighted portfolio returns to estimate μ (drift) and σ (volatility)
+- Formula: `S_{t+1} = S_t * exp(μ - ½σ² + σ*Z)` where Z ~ N(0,1)
+- Defaults: 300 simulations, 5 years forward, 252 trading days/year
+- Returns simulation paths, final values summary (mean, median, 5th/95th percentiles)
+
+### Sample Portfolio Generation
+- `POST /api/sample-portfolio/generate`: Creates DCA CSV for testing
+- Monthly investments, configurable years (default 2)
+- `SAMPLE_PORTFOLIO_ALLOCATION`: VOO, QQQ, SLV, GLD, CVNA, META
+- `SAMPLE_MONTHLY_INVESTMENT = 300.0`
+- Bulk price downloads for speed optimization
+- Cross-platform date formatting: `f"{month}/{day}/{year}"`
+
+### Frontend Simulation Tab
+- GBM Parameters card shows μ, σ, formula explanation
+- Projected Values grid: Mean/95th/Best and Median/5th/Worst layout
+- Custom ApexCharts tooltip with value formatting
+- Per-portfolio sample buttons: `generateSampleForPortfolio(portfolioNum)`
 
 ## CSS Patterns
 
@@ -165,6 +192,13 @@ All annualization uses `TRADING_DAYS_PER_YEAR = 252`:
 - **VaR 95%**: `monthly_vol * 1.645`
 - **XIRR**: Bisection method on NPV=0 for irregular cash flows
 
+### GBM Simulation Parameters
+- **Drift (μ)**: Estimated from weighted portfolio returns annualized
+- **Volatility (σ)**: Portfolio volatility from weighted holdings
+- **Formula**: `S_{t+1} = S_t * exp(μ - ½σ² + σ*Z)` where Z ~ N(0,1)
+- **Time steps**: Daily (252 per year), 5 years = 1260 steps
+- **Simulation count**: Default 300 runs for statistical validity
+
 ## Key Conventions
 
 - **Ticker normalization**: Always `.upper().strip()` before use
@@ -182,6 +216,9 @@ All annualization uses `TRADING_DAYS_PER_YEAR = 252`:
 | Spinner not showing | Check spinner ID exists in HTML, CSS has `.active` style |
 | Dates misaligned in dual chart | Use Map + forward-fill pattern (see `renderDualValueChart`) |
 | CSS overlay not positioning | Add `position: relative` to parent |
+| Sample generation slow | Use bulk yfinance downloads, not per-date API calls |
+| GBM produces extreme values | Ensure using weighted portfolio returns, not raw values |
+| Cross-platform date issues | Use `f"{month}/{day}/{year}"` not strftime |
 
 ## Debugging Commands
 
@@ -213,6 +250,25 @@ grep -A 20 "class AssetMetrics" helper.py
 }
 ```
 
+`POST /api/simulate` returns:
+```javascript
+{
+  simulation_paths: [[run1_values...], [run2_values...], ...],
+  final_values: { mean, median, min, max, percentile_5, percentile_95 },
+  parameters: { drift, volatility, years, simulations, time_steps }
+}
+```
+
+`POST /api/sample-portfolio/generate` returns:
+```javascript
+{
+  filename: "sample_portfolio_dca.csv",
+  total_trades: number,
+  date_range: { start: "YYYY-MM-DD", end: "YYYY-MM-DD" },
+  total_invested: number
+}
+```
+
 ## Test Lab Feature
 
 Separate tab that simulates adding $X to 50+ ETFs:
@@ -220,3 +276,4 @@ Separate tab that simulates adding $X to 50+ ETFs:
 - Custom ticker test: `POST /api/testlab/test-ticker`
 - Results show impact on Sharpe, Sortino, volatility
 - UI in `index.html` under `#tab-testlab`
+- Fixed frontend/backend property mismatch: use `all_results` not `results`

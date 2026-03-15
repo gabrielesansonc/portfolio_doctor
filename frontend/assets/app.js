@@ -1,5 +1,22 @@
 /* ===== Portfolio Dashboard App with Dual Portfolio Support ===== */
 
+// API Configuration - supports both local and production environments
+const API_BASE_URL = (() => {
+  // In production (Vercel), use environment variable
+  if (typeof process !== 'undefined' && process.env?.VITE_API_URL) {
+    return process.env.VITE_API_URL;
+  }
+  // Fallback: If on Vercel domain, try to infer backend URL
+  if (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')) {
+    // In production, backend URL should be set via env var above
+    return 'https://portfolio-api.onrender.com'; // Default - override with env var
+  }
+  // Local development
+  return 'http://localhost:8000';
+})();
+
+console.log(`[Portfolio Dashboard] Using API Base URL: ${API_BASE_URL}`);
+
 const state = {
   charts: {
     value1: null,
@@ -689,7 +706,7 @@ async function uploadFile(fileInput, portfolioNum) {
   form.append('file', file);
 
   try {
-    const response = await fetch('/api/upload-csv', { method: 'POST', body: form });
+    const response = await fetch(`${API_BASE_URL}/api/upload-csv`, { method: 'POST', body: form });
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.detail || 'Upload failed');
     return payload.uploaded;
@@ -743,7 +760,7 @@ async function runAnalysisForPortfolio(portfolioNum) {
   const portfolioState = state[`portfolio${portfolioNum}`];
   if (!portfolioState.file) return null;
   
-  const response = await fetch('/api/analyze', {
+  const response = await fetch(`${API_BASE_URL}/api/analyze`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -1372,7 +1389,7 @@ async function runLabSimulation() {
   el.labPortfolioBadge.textContent = portfolioState.name || `Portfolio ${portfolioNum}`;
 
   try {
-    const response = await fetch('/api/testlab/simulate', {
+    const response = await fetch(`${API_BASE_URL}/api/testlab/simulate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1492,7 +1509,7 @@ async function testCustomTicker() {
   el.customResult.classList.add('active');
 
   try {
-    const response = await fetch('/api/testlab/test-ticker', {
+    const response = await fetch(`${API_BASE_URL}/api/testlab/test-ticker`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1577,7 +1594,7 @@ async function runGBMSimulation() {
   if (el.spinnerSimChart) el.spinnerSimChart.classList.add('active');
   
   try {
-    const response = await fetch('/api/simulate', {
+    const response = await fetch(`${API_BASE_URL}/api/simulate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1914,7 +1931,7 @@ function bindEvents() {
     
     try {
       const years = Number(el.years.value) || 5;
-      const response = await fetch(`/api/sample-portfolio/generate?years=${years}`, { method: 'POST' });
+      const response = await fetch(`${API_BASE_URL}/api/sample-portfolio/generate?years=${years}`, { method: 'POST' });
       const result = await response.json();
       
       if (!response.ok) throw new Error(result.detail || 'Failed to generate sample');

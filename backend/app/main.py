@@ -54,6 +54,22 @@ class AnalyzeRequest(BaseModel):
 
 app = FastAPI(title="Portfolio Dashboard API", version="2.0.0")
 
+# Add CORS middleware to allow requests from Vercel frontend and local development
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:8000",
+        "https://*.vercel.app",
+        "https://*.onrender.com",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 @app.get("/api/health")
 def health() -> dict[str, str]:

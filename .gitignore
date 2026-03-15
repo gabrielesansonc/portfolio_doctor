@@ -1,5 +1,37 @@
 venv/
+env/
+.venv/
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+.Python
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+.DS_Store
+
+# Environment variables
 .env
+.env.local
+.env.*.local
+
+# Data files (uploaded CSVs)
 data/*.csv
+sample_portfolio_dca.csv
+
+# Build & Deploy
+/build
+/dist
+*.egg-info/
+.vercel/
+
+# Node (if needed)
+node_modules/
+npm-debug.log
+
+# OS
+Thumbs.db

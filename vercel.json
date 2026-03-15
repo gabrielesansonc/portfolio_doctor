@@ -1,0 +1,9 @@
+{
+  "buildCommand": "echo 'Frontend is static - no build needed'",
+  "outputDirectory": "frontend",
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "env": {
+    "VITE_API_URL": "@api_url"
+  }
+}
