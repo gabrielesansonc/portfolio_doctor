@@ -60,8 +60,8 @@
         <div class="upload-modal">
           <div class="upload-modal-header">
             <i class="fas fa-chart-line"></i>
-            <h2>Portfolio Doctor</h2>
-            <p class="upload-subtitle">Get an intuitive quantitative understanding of your portfolio performance</p>
+            <h2>NotFinancialAdvice</h2>
+            <p class="upload-subtitle">Get a clear picture of how your investments have actually performed</p>
           </div>
 
           <div class="upload-step-indicator">
@@ -82,7 +82,7 @@
                   </div>
                   <div class="description-content">
                     <h3>Portfolio Metrics</h3>
-                    <p>Calculate key metrics like Sharpe ratio, Sortino ratio, max drawdown, and beta with clear explanations of what they mean for your investments</p>
+                    <p>See how much risk you're taking for each dollar of return, how bad your worst stretches have been, and how your portfolio compares to the market — all in plain English</p>
                   </div>
                 </div>
                 <div class="description-item">
@@ -270,6 +270,7 @@
         <!-- Single Portfolio Content (shown when only 1 portfolio) -->
         <div id="portfolio1Content" class="portfolio-content active">
           <!-- Metrics Cards - Row 1 -->
+          <p class="metrics-section-label">Your returns</p>
           <section class="metrics-grid">
             <div class="metric-card" data-tooltip="Your portfolio's yearly growth rate. If you invested $10,000 and got 12% annual return, you'd have $11,200 after one year.">
               <div class="metric-icon green">
@@ -289,7 +290,7 @@
                 <span class="metric-value" id="metricVolatility1">—</span>
               </div>
             </div>
-            <div class="metric-card" data-tooltip="Reward per unit of 'bad' risk (only counting drops). Higher is better. Formula: (Return − Risk-free rate) ÷ Downside Vol. Above 2 is excellent.">
+            <div class="metric-card" data-tooltip="How much return you earned for each unit of downside risk. Higher is better — above 2 is excellent. Unlike Sharpe, it ignores upside swings and only penalizes losses.">
               <div class="metric-icon cyan">
                 <i class="fas fa-shield-halved"></i>
               </div>
@@ -298,7 +299,7 @@
                 <span class="metric-value" id="metricSortino1">—</span>
               </div>
             </div>
-            <div class="metric-card" data-tooltip="Reward per unit of total risk. Higher = better risk-adjusted returns. Formula: (Return − Risk-free rate) ÷ Volatility. Above 1 is good, above 2 is great.">
+            <div class="metric-card" data-tooltip="How much return you earned for each unit of total risk. Higher is better — above 1 is good, above 2 is great. A score below 1 means the risk wasn't worth the reward.">
               <div class="metric-icon blue">
                 <i class="fas fa-balance-scale"></i>
               </div>
@@ -310,6 +311,7 @@
           </section>
           
           <!-- Metrics Cards - Row 2 -->
+          <p class="metrics-section-label">Your risk exposure</p>
           <section class="metrics-grid">
             <div class="metric-card" data-tooltip="The biggest peak-to-trough drop your portfolio experienced. Example: -35% means at worst, $10,000 fell to $6,500 before recovering.">
               <div class="metric-icon red">
@@ -325,7 +327,7 @@
                 <i class="fas fa-wave-square"></i>
               </div>
               <div class="metric-content">
-                <span class="metric-label">Beta (vs SPY)</span>
+                <span class="metric-label">Market Sensitivity</span>
                 <span class="metric-value" id="metricBeta1">—</span>
               </div>
             </div>
@@ -334,7 +336,7 @@
                 <i class="fas fa-triangle-exclamation"></i>
               </div>
               <div class="metric-content">
-                <span class="metric-label">VaR 95% (Monthly)</span>
+                <span class="metric-label">Worst-Month Estimate</span>
                 <span class="metric-value" id="metricVaR1">—</span>
               </div>
             </div>
@@ -386,7 +388,7 @@
           <section class="charts-row">
             <div class="card">
               <div class="card-header">
-                <h2><i class="fas fa-crosshairs"></i> Risk-Return Analysis (Efficient Frontier) <span class="section-info-icon" data-tooltip-text="Plots annual return vs volatility. Shows where your portfolio sits relative to benchmarks. Assets closer to upper-left offer better risk-adjusted returns.">ⓘ</span><span class="title-spinner" id="spinnerScatter1"></span></h2>
+                <h2><i class="fas fa-crosshairs"></i> Risk vs. Return Comparison <span class="section-info-icon" data-tooltip-text="Plots annual return vs volatility. Shows where your portfolio sits relative to benchmarks. Assets closer to upper-left offer better risk-adjusted returns.">ⓘ</span><span class="title-spinner" id="spinnerScatter1"></span></h2>
                 <div class="card-actions">
                   <div class="ticker-input-group">
                     <input id="scatterInput1" placeholder="Add ticker (e.g. TSLA)" />
@@ -408,6 +410,7 @@
         <!-- Portfolio 2 Content -->
         <div id="portfolio2Content" class="portfolio-content">
           <!-- Metrics Cards - Row 1 -->
+          <p class="metrics-section-label">Your returns</p>
           <section class="metrics-grid">
             <div class="metric-card" data-tooltip="Your portfolio's yearly growth rate. If you invested $10,000 and got 12% annual return, you'd have $11,200 after one year.">
               <div class="metric-icon green">
@@ -427,7 +430,7 @@
                 <span class="metric-value" id="metricVolatility2">—</span>
               </div>
             </div>
-            <div class="metric-card" data-tooltip="Reward per unit of 'bad' risk (only counting drops). Higher is better. Formula: (Return − Risk-free rate) ÷ Downside Vol. Above 2 is excellent.">
+            <div class="metric-card" data-tooltip="How much return you earned for each unit of downside risk. Higher is better — above 2 is excellent. Unlike Sharpe, it ignores upside swings and only penalizes losses.">
               <div class="metric-icon cyan">
                 <i class="fas fa-shield-halved"></i>
               </div>
@@ -436,7 +439,7 @@
                 <span class="metric-value" id="metricSortino2">—</span>
               </div>
             </div>
-            <div class="metric-card" data-tooltip="Reward per unit of total risk. Higher = better risk-adjusted returns. Formula: (Return − Risk-free rate) ÷ Volatility. Above 1 is good, above 2 is great.">
+            <div class="metric-card" data-tooltip="How much return you earned for each unit of total risk. Higher is better — above 1 is good, above 2 is great. A score below 1 means the risk wasn't worth the reward.">
               <div class="metric-icon blue">
                 <i class="fas fa-balance-scale"></i>
               </div>
@@ -448,6 +451,7 @@
           </section>
           
           <!-- Metrics Cards - Row 2 -->
+          <p class="metrics-section-label">Your risk exposure</p>
           <section class="metrics-grid">
             <div class="metric-card" data-tooltip="The biggest peak-to-trough drop your portfolio experienced. Example: -35% means at worst, $10,000 fell to $6,500 before recovering.">
               <div class="metric-icon red">
@@ -463,7 +467,7 @@
                 <i class="fas fa-wave-square"></i>
               </div>
               <div class="metric-content">
-                <span class="metric-label">Beta (vs SPY)</span>
+                <span class="metric-label">Market Sensitivity</span>
                 <span class="metric-value" id="metricBeta2">—</span>
               </div>
             </div>
@@ -472,7 +476,7 @@
                 <i class="fas fa-triangle-exclamation"></i>
               </div>
               <div class="metric-content">
-                <span class="metric-label">VaR 95% (Monthly)</span>
+                <span class="metric-label">Worst-Month Estimate</span>
                 <span class="metric-value" id="metricVaR2">—</span>
               </div>
             </div>
@@ -524,7 +528,7 @@
           <section class="charts-row">
             <div class="card">
               <div class="card-header">
-                <h2><i class="fas fa-crosshairs"></i> Risk-Return Analysis (Efficient Frontier) <span class="section-info-icon" data-tooltip-text="Plots annual return vs volatility. Shows where your portfolio sits relative to benchmarks. Assets closer to upper-left offer better risk-adjusted returns.">ⓘ</span><span class="title-spinner" id="spinnerScatter2"></span></h2>
+                <h2><i class="fas fa-crosshairs"></i> Risk vs. Return Comparison <span class="section-info-icon" data-tooltip-text="Plots annual return vs volatility. Shows where your portfolio sits relative to benchmarks. Assets closer to upper-left offer better risk-adjusted returns.">ⓘ</span><span class="title-spinner" id="spinnerScatter2"></span></h2>
                 <div class="card-actions">
                   <div class="ticker-input-group">
                     <input id="scatterInput2" placeholder="Add ticker (e.g. TSLA)" />
@@ -557,6 +561,7 @@
             </div>
           </div>
           <!-- Dual Metrics Cards - Row 1 -->
+          <p class="metrics-section-label">Your returns</p>
           <section class="metrics-grid">
             <div class="metric-card dual-metric" data-tooltip="Your portfolio's yearly growth rate. If you invested $10,000 and got 12% annual return, you'd have $11,200 after one year.">
               <div class="metric-icon green">
@@ -582,7 +587,7 @@
                 </div>
               </div>
             </div>
-            <div class="metric-card dual-metric" data-tooltip="Reward per unit of 'bad' risk (only counting drops). Higher is better. Formula: (Return − Risk-free rate) ÷ Downside Vol. Above 2 is excellent.">
+            <div class="metric-card dual-metric" data-tooltip="How much return you earned for each unit of downside risk. Higher is better — above 2 is excellent. Unlike Sharpe, it ignores upside swings and only penalizes losses.">
               <div class="metric-icon cyan">
                 <i class="fas fa-shield-halved"></i>
               </div>
@@ -594,7 +599,7 @@
                 </div>
               </div>
             </div>
-            <div class="metric-card dual-metric" data-tooltip="Reward per unit of total risk. Higher = better risk-adjusted returns. Formula: (Return − Risk-free rate) ÷ Volatility. Above 1 is good, above 2 is great.">
+            <div class="metric-card dual-metric" data-tooltip="How much return you earned for each unit of total risk. Higher is better — above 1 is good, above 2 is great. A score below 1 means the risk wasn't worth the reward.">
               <div class="metric-icon blue">
                 <i class="fas fa-balance-scale"></i>
               </div>
@@ -609,6 +614,7 @@
           </section>
           
           <!-- Dual Metrics Cards - Row 2 -->
+          <p class="metrics-section-label">Your risk exposure</p>
           <section class="metrics-grid">
             <div class="metric-card dual-metric" data-tooltip="The biggest peak-to-trough drop your portfolio experienced. Example: -35% means at worst, $10,000 fell to $6,500 before recovering.">
               <div class="metric-icon red">
@@ -627,7 +633,7 @@
                 <i class="fas fa-wave-square"></i>
               </div>
               <div class="metric-content">
-                <span class="metric-label">Beta (vs SPY)</span>
+                <span class="metric-label">Market Sensitivity</span>
                 <div class="metric-dual-values">
                   <span class="metric-value p1" id="dualBeta1">—</span>
                   <span class="metric-value p2" id="dualBeta2">—</span>
@@ -639,7 +645,7 @@
                 <i class="fas fa-triangle-exclamation"></i>
               </div>
               <div class="metric-content">
-                <span class="metric-label">VaR 95% (Monthly)</span>
+                <span class="metric-label">Worst-Month Estimate</span>
                 <div class="metric-dual-values">
                   <span class="metric-value p1" id="dualVaR1">—</span>
                   <span class="metric-value p2" id="dualVaR2">—</span>
@@ -707,7 +713,7 @@
           <section class="charts-row">
             <div class="card">
               <div class="card-header">
-                <h2><i class="fas fa-crosshairs"></i> Risk-Return Analysis (Efficient Frontier) <span class="section-info-icon" data-tooltip-text="Plots annual return vs volatility. Shows where your portfolio sits relative to benchmarks. Assets closer to upper-left offer better risk-adjusted returns.">ⓘ</span><span class="title-spinner" id="spinnerDualScatter"></span></h2>
+                <h2><i class="fas fa-crosshairs"></i> Risk vs. Return Comparison <span class="section-info-icon" data-tooltip-text="Plots annual return vs volatility. Shows where your portfolio sits relative to benchmarks. Assets closer to upper-left offer better risk-adjusted returns.">ⓘ</span><span class="title-spinner" id="spinnerDualScatter"></span></h2>
                 <div class="card-actions">
                   <div class="ticker-input-group">
                     <input id="dualScatterInput" placeholder="Add ticker (e.g. TSLA)" />
@@ -735,14 +741,14 @@
         <header class="topbar">
           <div class="topbar-left">
             <h1><i class="fas fa-chart-line"></i> Monte Carlo Simulation</h1>
-            <p class="topbar-subtitle">Simulate your portfolio's future using Geometric Brownian Motion</p>
+            <p class="topbar-subtitle">See how your portfolio might grow over the next 5 years, based on your own history</p>
           </div>
           <div class="topbar-right">
             <div class="portfolio-selector">
               <label>Simulate</label>
               <select id="simPortfolioSelect">
                 <option value="1">Portfolio 1</option>
-                <option value="2" id="simPortfolio2Option" disabled>Portfolio 2</option>
+                <option value="2" id="simPortfolio2Option" disabled>Portfolio 2 (upload to enable)</option>
               </select>
             </div>
             <button id="runSimBtn" class="btn-primary">
@@ -757,139 +763,138 @@
         <section class="sim-section">
           <div class="card">
             <div class="card-header">
-              <h2><i class="fas fa-cog"></i> GBM Parameters (from 5-year history)</h2>
+              <h2><i class="fas fa-cog"></i> What the Simulation Is Based On</h2>
               <span class="sim-portfolio-badge" id="simPortfolioBadge">Portfolio 1</span>
             </div>
             <div class="metrics-grid sim-metrics-grid">
-              <div class="metric-card" data-tooltip="Expected annual return (drift) estimated from weighted historical returns of your holdings.">
+              <div class="metric-card" data-tooltip="The average annual return your portfolio has earned historically. This is the engine's starting point for projecting future growth.">
                 <div class="metric-icon blue"><i class="fas fa-chart-line"></i></div>
                 <div class="metric-content">
-                  <span class="metric-label">Annual Drift (μ)</span>
+                  <span class="metric-label">Expected Annual Growth</span>
                   <span class="metric-value" id="simMuAnnual">—</span>
                 </div>
               </div>
-              <div class="metric-card" data-tooltip="Annualized volatility (standard deviation) of your portfolio's historical returns.">
+              <div class="metric-card" data-tooltip="How much your portfolio's returns have varied year to year. Higher volatility means a wider range of possible outcomes in the simulation.">
                 <div class="metric-icon purple"><i class="fas fa-wave-square"></i></div>
                 <div class="metric-content">
-                  <span class="metric-label">Annual Volatility (σ)</span>
+                  <span class="metric-label">Annual Volatility</span>
                   <span class="metric-value" id="simSigmaAnnual">—</span>
                 </div>
               </div>
-              <div class="metric-card" data-tooltip="Daily expected return used in the GBM simulation. Annual drift ÷ 252 trading days.">
-                <div class="metric-icon cyan"><i class="fas fa-calendar-day"></i></div>
-                <div class="metric-content">
-                  <span class="metric-label">Daily Drift (μ)</span>
-                  <span class="metric-value" id="simMuDaily">—</span>
-                </div>
-              </div>
-              <div class="metric-card" data-tooltip="Daily volatility used in simulation. Annual volatility ÷ √252.">
-                <div class="metric-icon green"><i class="fas fa-chart-bar"></i></div>
-                <div class="metric-content">
-                  <span class="metric-label">Daily Volatility (σ)</span>
-                  <span class="metric-value" id="simSigmaDaily">—</span>
-                </div>
-              </div>
-              <div class="metric-card" data-tooltip="Number of historical trading days used to estimate drift and volatility.">
-                <div class="metric-icon gray"><i class="fas fa-history"></i></div>
-                <div class="metric-content">
-                  <span class="metric-label">History Days</span>
-                  <span class="metric-value" id="simHistoryDays">—</span>
-                </div>
-              </div>
-              <div class="metric-card" data-tooltip="Number of holdings in your portfolio used for weighted return calculation.">
-                <div class="metric-icon gray"><i class="fas fa-layer-group"></i></div>
-                <div class="metric-content">
-                  <span class="metric-label">Holdings Used</span>
-                  <span class="metric-value" id="simNumHoldings">—</span>
-                </div>
-              </div>
-              <div class="metric-card" data-tooltip="Current market value of your portfolio - the starting point for simulation.">
+              <div class="metric-card" data-tooltip="Your portfolio's current market value — the dollar amount every simulation path starts from.">
                 <div class="metric-icon green"><i class="fas fa-wallet"></i></div>
                 <div class="metric-content">
-                  <span class="metric-label">Current Value</span>
+                  <span class="metric-label">Starting Value</span>
                   <span class="metric-value" id="simCurrentValue">—</span>
                 </div>
               </div>
-              <div class="metric-card" data-tooltip="Log returns are assumed to follow a Normal (Gaussian) distribution. This is the standard GBM assumption.">
-                <div class="metric-icon orange"><i class="fas fa-random"></i></div>
+              <div class="metric-card" data-tooltip="How many years of your portfolio's price history were used to estimate growth and volatility for this simulation.">
+                <div class="metric-icon gray"><i class="fas fa-history"></i></div>
                 <div class="metric-content">
-                  <span class="metric-label">Distribution</span>
-                  <span class="metric-value" id="simDistribution">Z ~ N(0,1)</span>
+                  <span class="metric-label">History Used</span>
+                  <span class="metric-value" id="simHistoryDays">—</span>
                 </div>
               </div>
+              <!-- Hidden fields kept for JS compatibility -->
+              <span id="simMuDaily" style="display:none"></span>
+              <span id="simSigmaDaily" style="display:none"></span>
+              <span id="simNumHoldings" style="display:none"></span>
+              <span id="simDistribution" style="display:none"></span>
             </div>
-            <!-- Formula section -->
-            <div class="sim-formula-bar">
-              <span class="sim-formula-label">Model</span>
-              <span class="sim-formula-value" title="Geometric Brownian Motion: Projects future prices using historical drift (μ) and volatility (σ). The -½σ² term is the Itô correction ensuring E[S_t] = S_0·e^(μt).">
-                S<sub>t+1</sub> = S<sub>t</sub> · exp(μ − ½σ² + σ·Z)
-              </span>
-            </div>
+            <p class="sim-plain-note"><i class="fas fa-lightbulb"></i> Each path models random daily moves based on your portfolio's own history — like replaying the past with different luck each time.</p>
           </div>
         </section>
 
-        <!-- Simulation Chart -->
+        <!-- Simulation Chart + Results (unified card) -->
         <section class="sim-section">
           <div class="card">
             <div class="card-header">
               <h2><i class="fas fa-wave-square"></i> 5-Year Projection <span class="section-info-icon" data-tooltip-text="Monte Carlo simulation projecting your portfolio value 5 years forward. Uses your holdings' historical returns and volatility to model possible future outcomes. Shows mean, best/worst cases, and confidence intervals.">ⓘ</span></h2>
             </div>
+            <div class="sim-chart-controls">
+              <div class="sim-paths-field">
+                <label for="simNumPathsInput" class="sim-chart-control-label">Simulated futures</label>
+                <span class="sim-chart-control-hint">More paths = more detail, but slower (10–1,000 recommended)</span>
+              </div>
+              <input id="simNumPathsInput" type="number" min="10" max="100000" value="300" class="sim-paths-input" />
+            </div>
             <div class="chart-wrapper" style="position:relative;">
               <div id="spinnerSimChart" class="spinner"></div>
               <div id="simChart" class="chart-container" style="min-height:400px;"></div>
             </div>
-          </div>
-        </section>
-
-        <!-- Final Values Summary -->
-        <section class="sim-section">
-          <div class="card">
-            <div class="card-header">
-              <h2><i class="fas fa-flag-checkered"></i> Projected Values After 5 Years</h2>
+            <!-- Results grid lives inside the same card, below the chart -->
+            <div class="sim-results-divider">
+              <span>Where do the paths end up after 5 years?</span>
             </div>
             <div class="metrics-grid sim-results-metrics">
-              <!-- Row 1: Mean, 95th Percentile, Best Case -->
-              <div class="metric-card" data-tooltip="Average final portfolio value across all 300 simulation paths.">
+              <div class="metric-card" data-tooltip="Average final value across all simulated futures.">
                 <div class="metric-icon blue"><i class="fas fa-calculator"></i></div>
                 <div class="metric-content">
-                  <span class="metric-label">Mean</span>
+                  <span class="metric-label">Average Outcome</span>
                   <span class="metric-value" id="simFinalMean">—</span>
                 </div>
               </div>
-              <div class="metric-card" data-tooltip="95% of simulations ended below this value. Optimistic but plausible outcome.">
+              <div class="metric-card" data-tooltip="Good scenario: only the top 5% of simulated futures exceeded this — an optimistic but realistic outcome.">
                 <div class="metric-icon green"><i class="fas fa-arrow-up"></i></div>
                 <div class="metric-content">
-                  <span class="metric-label">95th Percentile</span>
+                  <span class="metric-label">Good Scenario (Top 5%)</span>
                   <span class="metric-value" id="simFinal95">—</span>
                 </div>
               </div>
-              <div class="metric-card" data-tooltip="Highest final value achieved in any simulation path.">
+              <div class="metric-card" data-tooltip="The single highest ending value across all simulated futures — an extreme outlier, not a realistic target.">
                 <div class="metric-icon cyan"><i class="fas fa-trophy"></i></div>
                 <div class="metric-content">
-                  <span class="metric-label">Best Case</span>
+                  <span class="metric-label">Extreme High (1 path)</span>
                   <span class="metric-value" id="simFinalMax">—</span>
                 </div>
               </div>
-              <!-- Row 2: Median, 5th Percentile, Worst Case -->
-              <div class="metric-card" data-tooltip="Middle value - 50% of simulations ended above and 50% below this.">
+              <div class="metric-card" data-tooltip="Most likely outcome: half of all simulated futures ended above this value, half below.">
                 <div class="metric-icon purple"><i class="fas fa-percentage"></i></div>
                 <div class="metric-content">
-                  <span class="metric-label">Median</span>
+                  <span class="metric-label">Most Likely Outcome</span>
                   <span class="metric-value" id="simFinalMedian">—</span>
                 </div>
               </div>
-              <div class="metric-card" data-tooltip="5% of simulations ended below this value. Conservative downside estimate.">
+              <div class="metric-card" data-tooltip="Bad scenario: only the bottom 5% of simulated futures ended below this — a realistic downside estimate.">
                 <div class="metric-icon red"><i class="fas fa-arrow-down"></i></div>
                 <div class="metric-content">
-                  <span class="metric-label">5th Percentile</span>
+                  <span class="metric-label">Bad Scenario (Bottom 5%)</span>
                   <span class="metric-value" id="simFinal5">—</span>
                 </div>
               </div>
-              <div class="metric-card" data-tooltip="Lowest final value achieved in any simulation path.">
+              <div class="metric-card" data-tooltip="The single lowest ending value across all simulated futures — an extreme outlier.">
                 <div class="metric-icon orange"><i class="fas fa-exclamation-triangle"></i></div>
                 <div class="metric-content">
-                  <span class="metric-label">Worst Case</span>
+                  <span class="metric-label">Extreme Low (1 path)</span>
                   <span class="metric-value" id="simFinalMin">—</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Benchmark Comparison Section -->
+        <section class="sim-section">
+          <div class="card">
+            <div class="card-header">
+              <h2><i class="fas fa-code-compare"></i> Compare Against a Benchmark <span class="section-info-icon" data-tooltip-text="Run the same simulation for any stock or fund using your portfolio's starting value, and overlay the results. Useful for comparing expected growth paths side by side.">ⓘ</span></h2>
+            </div>
+            <p class="sim-chart-control-hint" style="margin-bottom:0.75rem;">Uses the same number of paths as your projection above. Run the portfolio simulation first, then compare any ticker here.</p>
+            <div class="sim-benchmark-input-row">
+              <div class="ticker-input-group large">
+                <input id="simBenchmarkInput" placeholder="Enter ticker to compare (e.g. SPY, QQQ, BTC-USD)" />
+                <button id="runBenchmarkSimBtn" class="btn-primary">
+                  <i class="fas fa-play"></i> Compare
+                </button>
+              </div>
+            </div>
+            <div id="simBenchmarkStatus" class="status-bar" style="margin-top:0.75rem;"></div>
+            <div class="chart-wrapper" style="position:relative; margin-top:0.5rem;">
+              <div id="spinnerBenchmarkSim" class="spinner"></div>
+              <div id="benchmarkSimChart" class="chart-container" style="min-height:400px; position:relative;">
+                <div class="sim-benchmark-empty" id="benchmarkSimEmpty">
+                  <i class="fas fa-code-compare"></i>
+                  <p>Enter a ticker above and click <strong>Compare</strong> to see how it would have grown alongside your portfolio</p>
                 </div>
               </div>
             </div>
@@ -902,7 +907,7 @@
         <header class="topbar">
           <div class="topbar-left">
             <h1><i class="fas fa-flask"></i> Test Lab</h1>
-            <p class="topbar-subtitle">Simulate adding $1,000 investments to your portfolio</p>
+            <p class="topbar-subtitle">Discover which ETFs would have improved your returns — or reduced your risk</p>
           </div>
           <div class="topbar-right">
             <div class="portfolio-selector">
@@ -922,10 +927,7 @@
         <div class="card" style="margin: 1.5rem 0;">
           <div class="card-body" style="padding: 1.5rem;">
             <p style="color: var(--text-secondary); line-height: 1.6; margin: 0;">
-              <strong style="color: var(--text-primary);">What-If Analysis:</strong> Test how adding $1,000 to various ETFs would have impacted your portfolio metrics. 
-              This uses <strong>historical data only</strong> — it shows what would have happened if you had invested in the past, not what will happen in the future. 
-              <span style="color: var(--accent-cyan);">This is not a forecast and should not be used to decide what to invest in.</span> 
-              It simply reveals how your portfolio's risk-return profile would have changed with different past allocations.
+              Ever wonder if adding a little gold, bonds, or an index fund would have made your portfolio safer or more profitable? <strong style="color: var(--text-primary);">Test Lab answers that question using your real history.</strong> It replays the past 5 years with a small allocation to each ETF and shows how your returns and risk would have changed. This is purely historical — it's not a prediction of what will happen next.
             </p>
           </div>
         </div>
@@ -936,7 +938,7 @@
         <section class="lab-section">
           <div class="card">
             <div class="card-header">
-              <h2><i class="fas fa-wallet"></i> Current Portfolio Baseline <span class="section-info-icon" data-tooltip-text="Baseline metrics calculated using your current holdings (today's allocation). This represents your portfolio if you held these exact positions throughout the historical period.">ⓘ</span></h2>
+              <h2><i class="fas fa-wallet"></i> Your Portfolio (Baseline) <span class="section-info-icon" data-tooltip-text="These numbers show how your current mix of stocks would have performed over the past 5 years if you had always held them at today's weights. You may see different numbers here vs the Dashboard — that's normal. The Dashboard measures what you actually earned based on when you bought and sold. This view asks: 'Is this a good combination of stocks to hold?'">ⓘ</span></h2>
               <span class="baseline-portfolio-badge" id="labPortfolioBadge">Portfolio 1</span>
             </div>
             <div class="baseline-metrics">
@@ -964,11 +966,11 @@
         <section class="lab-section">
           <div class="card">
             <div class="card-header">
-              <h2><i class="fas fa-search"></i> Test Any Ticker</h2>
+              <h2><i class="fas fa-search"></i> Test Any Stock or Fund</h2>
             </div>
             <div class="custom-test-row">
               <div class="ticker-input-group large">
-                <input id="customTickerInput" placeholder="Enter any ticker (e.g. ARKK, GLD, EWG)" />
+                <input id="customTickerInput" placeholder="Type a ticker symbol (e.g. GLD, TLT, ARKK, QQQ)" />
                 <button id="testCustomBtn" class="btn-primary">
                   <i class="fas fa-calculator"></i> Calculate Impact
                 </button>
@@ -997,7 +999,7 @@
             </div>
             <div class="card ranking-card">
               <div class="card-header">
-                <h2><i class="fas fa-star"></i> Top 5 Sortino Improvers</h2>
+                <h2><i class="fas fa-star"></i> Top 5 Risk-Adjusted Improvers</h2>
                 <span class="ranking-badge purple">Better Risk-Adjusted</span>
               </div>
               <div id="topSortinoImprovers" class="ranking-list"></div>

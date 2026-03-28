@@ -32,6 +32,7 @@ const state = {
     dualHoldings1: null,
     dualHoldings2: null,
     simulation: null,
+    benchmarkSim: null,
   },
   defaults: null,
   // Per-portfolio state
@@ -249,14 +250,19 @@ const el = {
   simPortfolio2Option: document.getElementById('simPortfolio2Option'),
   simPortfolioBadge: document.getElementById('simPortfolioBadge'),
   runSimBtn: document.getElementById('runSimBtn'),
+  simNumPathsInput: document.getElementById('simNumPathsInput'),
   simStatus: document.getElementById('simStatus'),
+  simBenchmarkInput: document.getElementById('simBenchmarkInput'),
+  runBenchmarkSimBtn: document.getElementById('runBenchmarkSimBtn'),
+  simBenchmarkStatus: document.getElementById('simBenchmarkStatus'),
+  spinnerBenchmarkSim: document.getElementById('spinnerBenchmarkSim'),
+  benchmarkSimChart: document.getElementById('benchmarkSimChart'),
   simMuAnnual: document.getElementById('simMuAnnual'),
   simSigmaAnnual: document.getElementById('simSigmaAnnual'),
   simMuDaily: document.getElementById('simMuDaily'),
   simSigmaDaily: document.getElementById('simSigmaDaily'),
   simHistoryDays: document.getElementById('simHistoryDays'),
   simNumHoldings: document.getElementById('simNumHoldings'),
-  simTopHoldings: document.getElementById('simTopHoldings'),
   simCurrentValue: document.getElementById('simCurrentValue'),
   spinnerSimChart: document.getElementById('spinnerSimChart'),
   simChart: document.getElementById('simChart'),
@@ -266,6 +272,7 @@ const el = {
   simFinal95: document.getElementById('simFinal95'),
   simFinalMin: document.getElementById('simFinalMin'),
   simFinalMax: document.getElementById('simFinalMax'),
+  benchmarkSimEmpty: document.getElementById('benchmarkSimEmpty'),
   infoSheet: document.getElementById('infoSheet'),
   infoSheetBackdrop: document.getElementById('infoSheetBackdrop'),
   infoSheetClose: document.getElementById('infoSheetClose'),
@@ -407,7 +414,7 @@ function renderCachedSimulation(portfolioNum, payload) {
   if (el.simSigmaAnnual) el.simSigmaAnnual.textContent = fmtPct(payload.parameters.sigma_annual);
   if (el.simMuDaily) el.simMuDaily.textContent = `${(payload.parameters.mu_daily * 100).toFixed(4)}%`;
   if (el.simSigmaDaily) el.simSigmaDaily.textContent = `${(payload.parameters.sigma_daily * 100).toFixed(4)}%`;
-  if (el.simHistoryDays) el.simHistoryDays.textContent = payload.parameters.history_days.toLocaleString();
+  if (el.simHistoryDays) { const yrs = (payload.parameters.history_days / 252).toFixed(1); el.simHistoryDays.textContent = `~${yrs} years`; }
   if (el.simNumHoldings) el.simNumHoldings.textContent = payload.parameters.num_holdings;
   if (el.simCurrentValue) el.simCurrentValue.textContent = `$${payload.current_value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   if (el.simFinalMean) el.simFinalMean.textContent = `$${payload.final_values.mean.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
@@ -416,6 +423,10 @@ function renderCachedSimulation(portfolioNum, payload) {
   if (el.simFinal95) el.simFinal95.textContent = `$${payload.final_values.percentile_95.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
   if (el.simFinalMin) el.simFinalMin.textContent = `$${payload.final_values.min.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
   if (el.simFinalMax) el.simFinalMax.textContent = `$${payload.final_values.max.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+  // Update "Average Outcome" tooltip dynamically with actual path count
+  const actualPaths = getNumSimPaths();
+  const meanCard = el.simFinalMean?.closest('.metric-card');
+  if (meanCard) meanCard.dataset.tooltip = `Average final value across all ${actualPaths.toLocaleString()} simulated futures.`;
   renderSimulationChart(payload.simulation, payload.current_value);
 }
 
@@ -427,11 +438,32 @@ function renderCachedTestLab(portfolioNum, payload) {
   renderLabResults(payload);
 }
 
+function getAnyCachedSimulation(portfolioNum) {
+  const prefix = getPortfolioCacheKey(portfolioNum);
+  // Prefer exact match (current paths input)
+  const exact = state.cache.simulation[`${prefix}_n${getNumSimPaths()}`];
+  if (exact) return exact;
+  // Prefer the _latest stable slot (written every time a simulation completes)
+  const latest = state.cache.simulation[`${prefix}_latest`];
+  if (latest) return latest;
+  // Fall back to any cached entry for this portfolio
+  const fallbackKey = Object.keys(state.cache.simulation).find(k => k.startsWith(`${prefix}_n`));
+  return fallbackKey ? state.cache.simulation[fallbackKey] : null;
+}
+
+function getNumSimPaths() {
+  const v = parseInt(el.simNumPathsInput?.value ?? '300', 10);
+  if (isNaN(v) || v < 1) return 1;
+  if (v > 100000) return 100000;
+  return v;
+}
+
 async function fetchSimulationData(portfolioNum, { force = false } = {}) {
   const portfolioState = portfolioNum === '2' ? state.portfolio2 : state.portfolio1;
   if (!portfolioState.file) throw new Error('Please upload a portfolio first');
 
-  const cacheKey = getPortfolioCacheKey(portfolioNum);
+  const numPaths = getNumSimPaths();
+  const cacheKey = `${getPortfolioCacheKey(portfolioNum)}_n${numPaths}`;
   if (!force && state.cache.simulation[cacheKey]) {
     return state.cache.simulation[cacheKey];
   }
@@ -448,7 +480,7 @@ async function fetchSimulationData(portfolioNum, { force = false } = {}) {
       portfolio_name: portfolioState.name,
       history_years: 5,
       simulation_years: 5,
-      num_simulations: 300,
+      num_simulations: numPaths,
     }),
   }).then(async (response) => {
     if (!response.ok) {
@@ -457,6 +489,8 @@ async function fetchSimulationData(portfolioNum, { force = false } = {}) {
     }
     const data = await response.json();
     state.cache.simulation[cacheKey] = data;
+    // Also store in a stable slot so benchmark lookup never needs an exact path-count match
+    state.cache.simulation[`${getPortfolioCacheKey(portfolioNum)}_latest`] = data;
     markPreloadState('simulation', cacheKey, { status: 'ready' });
     return data;
   }).catch((error) => {
@@ -616,7 +650,7 @@ function switchTab(tabName) {
 
   if (tabName === 'simulation') {
     const portfolioNum = el.simPortfolioSelect?.value || '1';
-    const cached = state.cache.simulation[getPortfolioCacheKey(portfolioNum)];
+    const cached = state.cache.simulation[`${getPortfolioCacheKey(portfolioNum)}_n${getNumSimPaths()}`];
     if (cached) {
       renderCachedSimulation(portfolioNum, cached);
       showSimStatus('Prepared in background.', 'success');
@@ -628,8 +662,9 @@ function switchTab(tabName) {
           showSimStatus('Simulation ready.', 'success');
         }
       }).catch((error) => {
+        console.error('Simulation preload error:', error);
         if (state.currentTab === 'simulation') {
-          showSimStatus(`Error: ${error.message}`, 'error');
+          showSimStatus('Simulation couldn\'t complete. Please try again in a moment.', 'error');
         }
       });
     }
@@ -650,8 +685,9 @@ function switchTab(tabName) {
           setLabStatus(`Simulation ready! Analyzed ${payload.all_results?.length || payload.etf_count || 0} ETFs.`, 'success');
         }
       }).catch((error) => {
+        console.error('Test Lab preload error:', error);
         if (state.currentTab === 'testlab') {
-          setLabStatus(`Error: ${error.message}`, 'error');
+          setLabStatus('Analysis couldn\'t complete. Please try again in a moment.', 'error');
         }
       });
     }
@@ -1174,6 +1210,7 @@ async function runAnalysisForPortfolio(portfolioNum) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       csv_file: portfolioState.file,
+      portfolio_name: portfolioState.name,
       years: Number(el.years.value) || 5,
       risk_free_rate: 0.037,
       benchmarks: portfolioState.benchmarks,
@@ -1342,7 +1379,8 @@ async function runAnalysis(showProgress = false) {
 
     warmSecondaryTabs();
   } catch (error) {
-    setStatus(`Error: ${error.message || error}`, 'error');
+    console.error('Analysis error:', error);
+    setStatus('Analysis failed. Please check your CSV and try again.', 'error');
     // Hide all chart loading spinners on error
     hideChartLoading('spinnerValue1');
     hideChartLoading('spinnerHoldings1');
@@ -1414,31 +1452,29 @@ function renderDualValueChart(data1, data2) {
   const displayName1 = state.portfolio1.name;
   const displayName2 = state.portfolio2.name;
 
-  // Create date-indexed maps for both portfolios
+  // Create date-indexed maps for both portfolios.
+  // Use Portfolio 1's dates as the canonical timeline because benchmark
+  // values are simulated from Portfolio 1 cash flows.
   const data1Map = new Map(data1.value_history.map(pt => [pt.date, pt]));
   const data2Map = new Map(data2.value_history.map(pt => [pt.date, pt]));
   
-  // Get all unique dates from both portfolios, sorted
-  const allDates = [...new Set([
-    ...data1.value_history.map(pt => pt.date),
-    ...data2.value_history.map(pt => pt.date)
-  ])].sort();
+  const baseDates = data1.value_history.map((pt) => pt.date);
 
-  // Build aligned series with forward-fill for missing values
+  // Build aligned series with forward-fill for Portfolio 2 only.
   let lastVal1 = 0, lastVal2 = 0;
   const benchLastVals = {};
-  const allBenchmarks = [...new Set([...(data1.config?.benchmarks || []), ...(data2.config?.benchmarks || [])])];
+  const allBenchmarks = [...new Set(data1.config?.benchmarks || [])];
   allBenchmarks.forEach(b => benchLastVals[b] = 0);
   
   const series1Data = [];
   const series2Data = [];
   const benchData = allBenchmarks.map(() => []);
 
-  allDates.forEach(date => {
+  baseDates.forEach(date => {
     const pt1 = data1Map.get(date);
     const pt2 = data2Map.get(date);
     
-    // Portfolio 1 - use value if exists, otherwise forward-fill
+    // Portfolio 1 should have a value on its own timeline.
     if (pt1 && pt1[backendName1] != null) {
       lastVal1 = pt1[backendName1];
     }
@@ -1475,8 +1511,8 @@ function renderDualValueChart(data1, data2) {
     colors: [COLORS.primary, COLORS.purple, COLORS.green, COLORS.orange, COLORS.cyan],
     xaxis: {
       ...getBaseChartOptions().xaxis,
-      categories: allDates,
-      tickAmount: Math.min(layout.timeSeriesTicks, allDates.length),
+      categories: baseDates,
+      tickAmount: Math.min(layout.timeSeriesTicks, baseDates.length),
       labels: {
         ...getBaseChartOptions().xaxis.labels,
         rotate: layout.rotateLabels,
@@ -1825,7 +1861,8 @@ async function runLabSimulation() {
     renderLabResults(payload);
     setLabStatus(`Simulation complete! Analyzed ${payload.all_results?.length || payload.etf_count || 0} ETFs.`, 'success');
   } catch (error) {
-    setLabStatus(`Error: ${error.message || error}`, 'error');
+    console.error('Test Lab error:', error);
+    setLabStatus('Analysis couldn\'t complete. Please try again in a moment.', 'error');
   } finally {
     el.runLabBtn.disabled = false;
     el.runLabBtn.innerHTML = '<i class="fas fa-vial"></i> Run Simulation';
@@ -1983,7 +2020,7 @@ async function testCustomTicker() {
       </div>
     `;
   } catch (error) {
-    el.customResult.innerHTML = `<p class="help-text" style="color: var(--accent-red);">Error: ${error.message}</p>`;
+    el.customResult.innerHTML = `<p class="help-text" style="color: var(--accent-red);">Couldn't analyze that ticker. Check the symbol and try again.</p>`;
   } finally {
     el.testCustomBtn.disabled = false;
     el.testCustomBtn.innerHTML = '<i class="fas fa-calculator"></i> Calculate Impact';
@@ -2012,18 +2049,48 @@ async function runGBMSimulation() {
   if (el.spinnerSimChart) el.spinnerSimChart.classList.add('active');
   
   try {
-    const data = await fetchSimulationData(portfolioNum);
+    const data = await fetchSimulationData(portfolioNum, { force: true });
     renderCachedSimulation(portfolioNum, data);
     showSimStatus('Simulation complete!', 'success');
+    clearDirtySimPaths();
     
   } catch (error) {
     console.error('Simulation error:', error);
-    showSimStatus(`Error: ${error.message}`, 'error');
+    showSimStatus('Simulation couldn\'t complete. Please try again in a moment.', 'error');
   } finally {
     el.runSimBtn.disabled = false;
     el.runSimBtn.innerHTML = '<i class="fas fa-play"></i> Run Simulation';
     if (el.spinnerSimChart) el.spinnerSimChart.classList.remove('active');
   }
+}
+
+function showBenchmarkStatus(message, type = 'info') {
+  if (!el.simBenchmarkStatus) return;
+  el.simBenchmarkStatus.className = `status-bar ${type}`;
+  let icon = 'info-circle';
+  if (type === 'success') icon = 'check-circle';
+  else if (type === 'error') icon = 'exclamation-circle';
+  else if (type === 'loading') icon = 'spinner fa-spin';
+  el.simBenchmarkStatus.innerHTML = `<i class="fas fa-${icon}"></i> ${message}`;
+  el.simBenchmarkStatus.style.display = 'flex';
+  if (type === 'success') {
+    setTimeout(() => { el.simBenchmarkStatus.style.display = 'none'; }, 4000);
+  }
+}
+
+function markDirtySimPaths() {
+  if (el.runSimBtn) el.runSimBtn.classList.add('sim-rerun-needed');
+}
+
+function clearDirtySimPaths() {
+  if (el.runSimBtn) el.runSimBtn.classList.remove('sim-rerun-needed');
+}
+
+function clearBenchmarkChart() {
+  destroyChart('benchmarkSim');
+  if (el.benchmarkSimEmpty) el.benchmarkSimEmpty.style.display = 'flex';
+  if (el.simBenchmarkStatus) el.simBenchmarkStatus.style.display = 'none';
+  if (el.simBenchmarkInput) el.simBenchmarkInput.value = '';
 }
 
 function showSimStatus(message, type = 'info') {
@@ -2052,7 +2119,7 @@ function renderSimulationChart(simData, currentValue) {
   if (!container) return;
   
   // Add sample paths first (so they're behind), then mean and CI bounds
-  const numSamplePaths = Math.min(25, simData.paths.length);
+  const numSamplePaths = Math.min(50, simData.paths.length);
   const series = [];
   
   // Sample paths - all named with underscore to hide from legend
@@ -2111,9 +2178,15 @@ function renderSimulationChart(simData, currentValue) {
       width: [...Array(numSamplePaths).fill(1), 2, 2, 3],
       curve: 'smooth',
       dashArray: [...Array(numSamplePaths).fill(0), 5, 5, 0],
+      opacity: [...Array(numSamplePaths).fill(0.18), 1, 1, 1],
+    },
+    markers: {
+      size: [...Array(numSamplePaths).fill(0), 0, 0, 0],
+      hover: { size: [...Array(numSamplePaths).fill(0), 0, 0, 0], sizeOffset: 0 },
+      discrete: [],
     },
     fill: {
-      opacity: [...Array(numSamplePaths).fill(0.12), 0.8, 0.8, 1],
+      opacity: [...Array(numSamplePaths).fill(0), 0.8, 0.8, 1],
     },
     xaxis: {
       type: 'datetime',
@@ -2188,6 +2261,170 @@ function renderSimulationChart(simData, currentValue) {
   
   state.charts.simulation = new ApexCharts(container, options);
   state.charts.simulation.render();
+}
+
+function renderBenchmarkComparisonChart(portfolioSim, benchmarkSim, benchmarkTicker, currentValue) {
+  destroyChart('benchmarkSim');
+  const container = el.benchmarkSimChart;
+  if (!container) return;
+  if (el.benchmarkSimEmpty) el.benchmarkSimEmpty.style.display = 'none';
+
+  const portDates = portfolioSim.dates;
+  const benchDates = benchmarkSim.dates;
+
+  const series = [
+    { name: 'Portfolio — 5th %ile', data: portDates.map((d, i) => ({ x: new Date(d).getTime(), y: portfolioSim.lower_95[i] })) },
+    { name: 'Portfolio — 95th %ile', data: portDates.map((d, i) => ({ x: new Date(d).getTime(), y: portfolioSim.upper_95[i] })) },
+    { name: 'Portfolio — Mean', data: portDates.map((d, i) => ({ x: new Date(d).getTime(), y: portfolioSim.mean[i] })) },
+    { name: `${benchmarkTicker} — 5th %ile`, data: benchDates.map((d, i) => ({ x: new Date(d).getTime(), y: benchmarkSim.lower_95[i] })) },
+    { name: `${benchmarkTicker} — 95th %ile`, data: benchDates.map((d, i) => ({ x: new Date(d).getTime(), y: benchmarkSim.upper_95[i] })) },
+    { name: `${benchmarkTicker} — Mean`, data: benchDates.map((d, i) => ({ x: new Date(d).getTime(), y: benchmarkSim.mean[i] })) },
+  ];
+
+  const options = {
+    chart: {
+      type: 'line',
+      height: getChartLayoutConfig().simHeight,
+      background: 'transparent',
+      toolbar: { show: !getChartLayoutConfig().tablet, tools: { download: true, zoom: true, pan: true, reset: true } },
+      animations: { enabled: false },
+    },
+    series,
+    colors: ['#f59e0b', '#10b981', '#ef4444', '#93c5fd', '#6ee7b7', '#3b82f6'],
+    stroke: {
+      width: [1.5, 1.5, 3, 1.5, 1.5, 3],
+      curve: 'smooth',
+      dashArray: [5, 5, 0, 5, 5, 0],
+      opacity: [0.4, 0.4, 1, 0.4, 0.4, 1],
+    },
+    markers: {
+      size: [0, 0, 0, 0, 0, 0],
+      hover: { size: [0, 0, 0, 0, 0, 0], sizeOffset: 0 },
+      discrete: [],
+    },
+    fill: { opacity: [0, 0, 0.15, 0, 0, 0.15] },
+    xaxis: {
+      type: 'datetime',
+      labels: {
+        style: { colors: '#94a3b8', fontSize: '11px' },
+        datetimeFormatter: { year: 'yyyy', month: "MMM 'yy" },
+      },
+      axisBorder: { show: false },
+      axisTicks: { show: false },
+    },
+    yaxis: {
+      labels: {
+        style: { colors: '#94a3b8', fontSize: '11px' },
+        formatter: (val) => `$${(val / 1000).toFixed(0)}k`,
+      },
+    },
+    grid: { borderColor: '#2a2e38', strokeDashArray: 3 },
+    legend: {
+      show: true,
+      position: 'top',
+      horizontalAlign: 'left',
+      labels: { colors: '#94a3b8' },
+      itemMargin: { horizontal: 10 },
+    },
+    tooltip: {
+      theme: 'dark',
+      shared: true,
+      intersect: false,
+      x: { format: 'MMM yyyy' },
+      custom: function({ series, dataPointIndex, w }) {
+        const fmt = (v) => (v != null && !isNaN(v)) ? `$${v.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : '—';
+        const date = w.globals.seriesX[2]?.[dataPointIndex];
+        const dateStr = date ? new Date(date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '';
+        const portMean = series[2]?.[dataPointIndex];
+        const portLow  = series[0]?.[dataPointIndex];
+        const portHigh = series[1]?.[dataPointIndex];
+        const benchMean = series[5]?.[dataPointIndex];
+        const benchLow  = series[3]?.[dataPointIndex];
+        const benchHigh = series[4]?.[dataPointIndex];
+        return `<div class="sim-tooltip">
+          <div class="sim-tooltip-date">${dateStr}</div>
+          <div class="sim-tooltip-section">Your Portfolio</div>
+          <div class="sim-tooltip-row"><span class="sim-tooltip-dot" style="background:#ef4444"></span>Mean: <strong>${fmt(portMean)}</strong></div>
+          <div class="sim-tooltip-row"><span class="sim-tooltip-dot" style="background:#10b981"></span>95th %ile: <strong>${fmt(portHigh)}</strong></div>
+          <div class="sim-tooltip-row"><span class="sim-tooltip-dot" style="background:#f59e0b"></span>5th %ile: <strong>${fmt(portLow)}</strong></div>
+          <div class="sim-tooltip-section" style="margin-top:6px;">${benchmarkTicker}</div>
+          <div class="sim-tooltip-row"><span class="sim-tooltip-dot" style="background:#3b82f6"></span>Mean: <strong>${fmt(benchMean)}</strong></div>
+          <div class="sim-tooltip-row"><span class="sim-tooltip-dot" style="background:#6ee7b7"></span>95th %ile: <strong>${fmt(benchHigh)}</strong></div>
+          <div class="sim-tooltip-row"><span class="sim-tooltip-dot" style="background:#93c5fd"></span>5th %ile: <strong>${fmt(benchLow)}</strong></div>
+        </div>`;
+      },
+    },
+    annotations: {
+      yaxis: [{
+        y: currentValue,
+        borderColor: '#8b5cf6',
+        strokeDashArray: 4,
+        label: {
+          borderColor: '#8b5cf6',
+          style: { color: '#fff', background: '#8b5cf6' },
+          text: `Start: $${currentValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`,
+        },
+      }],
+    },
+  };
+
+  state.charts.benchmarkSim = new ApexCharts(container, options);
+  state.charts.benchmarkSim.render();
+}
+
+async function runBenchmarkSimulation() {
+  const ticker = el.simBenchmarkInput?.value?.trim().toUpperCase();
+  if (!ticker) {
+    showBenchmarkStatus('Enter a ticker symbol first (e.g. SPY, QQQ, AAPL).', 'error');
+    return;
+  }
+
+  const portfolioNum = el.simPortfolioSelect?.value || '1';
+  const portfolioState = portfolioNum === '2' ? state.portfolio2 : state.portfolio1;
+  if (!portfolioState.file) {
+    showBenchmarkStatus('Please upload a portfolio first.', 'error');
+    return;
+  }
+
+  const cachedSim = getAnyCachedSimulation(portfolioNum);
+  if (!cachedSim) {
+    showBenchmarkStatus('Run your portfolio simulation first using the button above, then compare here.', 'error');
+    return;
+  }
+
+  showBenchmarkStatus(`Simulating ${ticker}…`, 'loading');
+  if (el.spinnerBenchmarkSim) el.spinnerBenchmarkSim.classList.add('active');
+  if (el.benchmarkSimEmpty) el.benchmarkSimEmpty.style.display = 'none';
+  if (el.runBenchmarkSimBtn) { el.runBenchmarkSimBtn.disabled = true; el.runBenchmarkSimBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Comparing…'; }
+
+  try {
+    const resp = await fetch(`${API_BASE_URL}/api/simulate/ticker`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ticker,
+        history_years: 5,
+        simulation_years: 5,
+        num_simulations: getNumSimPaths(),
+        starting_value: cachedSim.current_value,
+      }),
+    });
+    if (!resp.ok) {
+      const err = await resp.json();
+      throw new Error(err.detail || 'Benchmark simulation failed');
+    }
+    const data = await resp.json();
+    renderBenchmarkComparisonChart(cachedSim.simulation, data.simulation, ticker, cachedSim.current_value);
+    if (el.benchmarkSimEmpty) el.benchmarkSimEmpty.style.display = 'none';
+    showBenchmarkStatus(`Your portfolio vs ${ticker} — both starting at $${cachedSim.current_value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, 'success');
+  } catch (err) {
+    console.error('Benchmark simulation error:', err);
+    if (el.benchmarkSimEmpty) el.benchmarkSimEmpty.style.display = 'flex';
+    showBenchmarkStatus(`Could not simulate "${ticker}" — check the ticker symbol and try again.`, 'error');
+  } finally {
+    if (el.spinnerBenchmarkSim) el.spinnerBenchmarkSim.classList.remove('active');
+    if (el.runBenchmarkSimBtn) { el.runBenchmarkSimBtn.disabled = false; el.runBenchmarkSimBtn.innerHTML = '<i class="fas fa-play"></i> Compare'; }
+  }
 }
 
 // ===== Chip Handlers =====
@@ -2492,12 +2729,23 @@ function bindEvents() {
   if (el.runSimBtn) {
     el.runSimBtn.addEventListener('click', runGBMSimulation);
   }
+  if (el.runBenchmarkSimBtn) {
+    el.runBenchmarkSimBtn.addEventListener('click', runBenchmarkSimulation);
+  }
+  if (el.simBenchmarkInput) {
+    el.simBenchmarkInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') runBenchmarkSimulation(); });
+  }
+  if (el.simNumPathsInput) {
+    el.simNumPathsInput.addEventListener('input', markDirtySimPaths);
+    el.simNumPathsInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') runGBMSimulation(); });
+  }
   if (el.simPortfolioSelect) {
     el.simPortfolioSelect.addEventListener('change', () => {
       const num = el.simPortfolioSelect.value;
       const pState = num === '2' ? state.portfolio2 : state.portfolio1;
       if (el.simPortfolioBadge) el.simPortfolioBadge.textContent = pState.name;
-      const cached = state.cache.simulation[getPortfolioCacheKey(num)];
+      clearBenchmarkChart();
+      const cached = state.cache.simulation[`${getPortfolioCacheKey(num)}_n${getNumSimPaths()}`];
       if (cached) {
         renderCachedSimulation(num, cached);
         showSimStatus('Prepared in background.', 'success');
@@ -2507,7 +2755,8 @@ function bindEvents() {
           renderCachedSimulation(num, payload);
           showSimStatus('Simulation ready.', 'success');
         }).catch((error) => {
-          showSimStatus(`Error: ${error.message}`, 'error');
+          console.error('Simulation error:', error);
+          showSimStatus('Simulation couldn\'t complete. Please try again in a moment.', 'error');
         });
       }
     });
@@ -2528,7 +2777,8 @@ function bindEvents() {
           renderCachedTestLab(num, payload);
           setLabStatus(`Simulation ready! Analyzed ${payload.all_results?.length || payload.etf_count || 0} ETFs.`, 'success');
         }).catch((error) => {
-          setLabStatus(`Error: ${error.message}`, 'error');
+          console.error('Test Lab error:', error);
+          setLabStatus('Analysis couldn\'t complete. Please try again in a moment.', 'error');
         });
       }
     });
@@ -2589,6 +2839,20 @@ async function init() {
     
   } catch (error) {
     console.error('Initialization failed:', error);
+    // Apply hardcoded defaults so the app remains usable even when the backend
+    // is slow to start (e.g. Render cold-start) or the /api/defaults call fails.
+    const fallbackDefaults = { years: 5, benchmarks: ['SPY', 'QQQ'], scatter_tickers: ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'NVDA', 'TSLA'] };
+    el.years.value = fallbackDefaults.years;
+    el.activeYearsPill.textContent = `${fallbackDefaults.years}Y`;
+    state.portfolio1.benchmarks = [...fallbackDefaults.benchmarks];
+    state.portfolio1.scatterTickers = [...fallbackDefaults.scatter_tickers];
+    state.portfolio2.benchmarks = [...fallbackDefaults.benchmarks];
+    state.portfolio2.scatterTickers = [...fallbackDefaults.scatter_tickers];
+    wireChipHandlers();
+    bindEvents();
+    bindTouchInfoSheets();
+    el.uploadOverlay.classList.add('active');
+    setUploadStep('intro');
   }
 }
 

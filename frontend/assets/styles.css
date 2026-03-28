@@ -52,7 +52,7 @@
 }
 
 html {
-  font-size: 14px;
+  font-size: 15px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   height: 100%;
@@ -192,6 +192,10 @@ body {
   border-color: var(--accent-blue);
   outline: none;
 }
+.csv-selector select:focus-visible {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 2px;
+}
 
 .btn-upload {
   width: 100%;
@@ -330,6 +334,10 @@ body {
 
 .year-input-group input[type="number"]:focus {
   outline: none;
+}
+.year-input-group input[type="number"]:focus-visible {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 2px;
 }
 
 .year-input-group:focus-within {
@@ -490,6 +498,16 @@ body {
   font-size: 0.85rem;
   color: var(--text-muted);
   font-weight: 500;
+}
+
+/* ===== Metrics Section Label ===== */
+.metrics-section-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin: 0.75rem 0 0.25rem;
 }
 
 /* ===== Metrics Grid ===== */
@@ -778,6 +796,10 @@ span.section-info-icon:hover::before {
 .ticker-input-group input:focus {
   outline: none;
   border-color: var(--accent-blue);
+}
+.ticker-input-group input:focus-visible {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 2px;
 }
 
 .btn-icon {
@@ -1733,6 +1755,10 @@ span.section-info-icon:hover::before {
   border-color: var(--accent-blue);
   background: var(--bg-card);
 }
+.portfolio-name-input:focus-visible {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 2px;
+}
 
 .portfolio-name-input::placeholder {
   color: var(--text-muted);
@@ -2456,6 +2482,65 @@ span.section-info-icon:hover::before {
   }
 }
 
+/* ===== Simulation Controls ===== */
+.sim-chart-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0.5rem 0 1rem;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 1rem;
+}
+
+.sim-paths-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.sim-chart-control-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.sim-chart-control-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.sim-paths-input {
+  width: 100px;
+  padding: 7px 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.sim-paths-input:focus-visible {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 2px;
+}
+
+.sim-benchmark-input-row {
+  padding: 0.25rem 0 0.5rem;
+}
+
+@media (max-width: 600px) {
+  .sim-chart-controls {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .sim-paths-input {
+    width: 100%;
+  }
+}
+
 /* ===== Simulation Tab Styles ===== */
 .sim-section {
   display: flex;
@@ -2554,6 +2639,10 @@ span.section-info-icon:hover::before {
   color: var(--accent-cyan);
 }
 
+.sim-formula-details[open] .sim-formula-chevron {
+  transform: rotate(180deg);
+}
+
 /* Custom tooltip for simulation chart */
 .sim-tooltip {
   background: var(--bg-card);
@@ -2589,6 +2678,76 @@ span.section-info-icon:hover::before {
 .sim-tooltip-row strong {
   margin-left: auto;
   font-weight: 600;
+}
+
+.sim-tooltip-section {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+/* Re-run dirty state: paths input changed but sim not re-run */
+.btn-primary.sim-rerun-needed {
+  background: var(--accent-amber, #f59e0b);
+  border-color: var(--accent-amber, #f59e0b);
+  animation: sim-rerun-pulse 2s ease-in-out infinite;
+}
+
+.btn-primary.sim-rerun-needed::after {
+  content: ' ↺';
+}
+
+@keyframes sim-rerun-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.75; }
+}
+
+/* Results divider inside the chart card */
+.sim-results-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 1.5rem 0 1rem;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.sim-results-divider::before,
+.sim-results-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-color);
+}
+
+/* Benchmark empty state */
+.sim-benchmark-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  height: 250px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 2rem;
+}
+
+.sim-benchmark-empty i {
+  font-size: 2.5rem;
+  opacity: 0.3;
+}
+
+.sim-benchmark-empty p {
+  font-size: 0.9rem;
+  max-width: 320px;
+  line-height: 1.6;
 }
 
 .sim-param-label {

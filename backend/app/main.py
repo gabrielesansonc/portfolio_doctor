@@ -66,8 +66,11 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",
         "http://localhost:8000",
-        "https://*.vercel.app",
-        "https://*.onrender.com",
+        # FastAPI's CORS middleware does not support wildcard subdomains —
+        # list each production origin explicitly.
+        "https://portfolio-doctor.onrender.com",
+        "https://portfolio-doctor.vercel.app",
+        "https://notfinancialadvice.vercel.app",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -211,19 +214,23 @@ def analyze(request: AnalyzeRequest) -> dict[str, Any]:
             except Exception:
                 continue
 
-        try:
-            scatter_rows.append(
-                compute_final_holdings_portfolio_metrics(
-                    result.trades,
-                    years=request.years,
-                    risk_free_rate=request.risk_free_rate,
-                    label=request.portfolio_name,
-                    as_of_date=analysis_end,
-                    market_returns=market_returns,
-                ).as_dict()
-            )
-        except Exception:
-            pass
+        portfolio_metrics_row = result.metrics_table[result.metrics_table["ticker"] == request.portfolio_name]
+        if not portfolio_metrics_row.empty:
+            scatter_rows.append(portfolio_metrics_row.iloc[0].to_dict())
+        else:
+            try:
+                scatter_rows.append(
+                    compute_final_holdings_portfolio_metrics(
+                        result.trades,
+                        years=request.years,
+                        risk_free_rate=request.risk_free_rate,
+                        label=request.portfolio_name,
+                        as_of_date=analysis_end,
+                        market_returns=market_returns,
+                    ).as_dict()
+                )
+            except Exception:
+                pass
 
         scatter_df = pd.DataFrame(scatter_rows)
         if not scatter_df.empty:
@@ -399,27 +406,38 @@ def testlab_simulate(request: TestLabRequest) -> dict[str, Any]:
             raise ValueError("Could not fetch prices for holdings.")
         
         final_shares = final_shares.loc[available]
-        prices_df = pd.DataFrame({s: price_map[s] for s in available}).dropna(how="any")
-        
+        # Use dropna(how="all") instead of dropna(how="any") so that a recently
+        # listed ticker (e.g. RVI with only 16 days of history) does not collapse
+        # the entire 5-year price matrix down to just its listing window.
+        prices_df = pd.DataFrame({s: price_map[s] for s in available}).dropna(how="all")
+
         if prices_df.empty:
             raise ValueError("Insufficient price history.")
-        
+
         # Calculate baseline portfolio metrics
         latest_prices = prices_df.iloc[-1]
         market_values = final_shares * latest_prices
         total_value = float(market_values.sum())
         weights = market_values / total_value
-        
-        daily_returns = prices_df.pct_change().dropna()
-        portfolio_returns = daily_returns.mul(weights, axis=1).sum(axis=1)
-        synthetic_index = (1.0 + portfolio_returns).cumprod()
-        
+
+        # pct_change() without dropna() so NaN (pre-listing) tickers don't
+        # truncate the history. sum(min_count=1) returns NaN for all-NaN rows
+        # (only the very first row); dropna() removes that one row.
+        daily_returns = prices_df.pct_change()
+        portfolio_returns = (
+            daily_returns.mul(weights, axis=1).sum(axis=1, min_count=1).dropna()
+        )
+        # Prepend explicit 1.0 base so prices.iloc[0] == 1.0 and the geometric
+        # return calculation divides by 1.0 rather than (1 + r_1).
+        base = pd.Series([1.0], index=[prices_df.index[0]])
+        synthetic_index = pd.concat([base, (1.0 + portfolio_returns).cumprod()])
+
         baseline = compute_metrics_from_price_series(
             synthetic_index,
             label="BASELINE",
             risk_free_rate=request.risk_free_rate,
         )
-        
+
         baseline_dict = {
             "annual_return": baseline.annual_return,
             "annual_volatility": baseline.annual_volatility,
@@ -442,7 +460,6 @@ def testlab_simulate(request: TestLabRequest) -> dict[str, Any]:
                     continue
                 
                 # Calculate new weights with added ETF investment
-                etf_latest = float(etf_prices.iloc[-1])
                 new_total = total_value + investment
                 
                 new_weights = (market_values / new_total).to_dict()
@@ -454,17 +471,31 @@ def testlab_simulate(request: TestLabRequest) -> dict[str, Any]:
                 else:
                     new_weights[etf_upper] = investment / new_total
                 
-                # Build combined returns
+                # Build combined returns over the FULL baseline window.
+                # Do NOT call .dropna() here — a recently-listed ETF will have
+                # NaN for pre-listing rows; sum(min_count=1) skips those NaN
+                # values so the comparison uses the same 5-year window as the
+                # baseline rather than collapsing to the ETF's listing date.
                 combined_prices = prices_df.copy()
                 if etf_upper not in combined_prices.columns:
                     combined_prices[etf_upper] = etf_prices
-                combined_returns = combined_prices.pct_change().dropna()
-                
-                new_portfolio_returns = sum(
-                    combined_returns[sym] * w for sym, w in new_weights.items()
-                    if sym in combined_returns.columns
+                combined_returns = combined_prices.pct_change()
+
+                # Normalise weights to sum to 1.0 using only symbols present
+                # in combined_returns (guards against silent weight deflation
+                # when a portfolio symbol failed to fetch).
+                present_syms = [s for s in new_weights if s in combined_returns.columns]
+                total_w = sum(new_weights[s] for s in present_syms)
+                norm_weights = {s: new_weights[s] / total_w for s in present_syms} if total_w > 0 else {}
+
+                new_portfolio_returns = (
+                    combined_returns[list(norm_weights.keys())]
+                    .mul(pd.Series(norm_weights), axis=1)
+                    .sum(axis=1, min_count=1)
+                    .dropna()
                 )
-                new_synthetic = (1.0 + new_portfolio_returns).cumprod()
+                base_new = pd.Series([1.0], index=[combined_prices.index[0]])
+                new_synthetic = pd.concat([base_new, (1.0 + new_portfolio_returns).cumprod()])
                 
                 new_metrics = compute_metrics_from_price_series(
                     new_synthetic,
@@ -559,27 +590,30 @@ def testlab_test_ticker(request: SingleTickerTestRequest) -> dict[str, Any]:
             raise ValueError("Could not fetch prices for holdings.")
         
         final_shares = final_shares.loc[available]
-        prices_df = pd.DataFrame({s: price_map[s] for s in available}).dropna(how="any")
-        
+        prices_df = pd.DataFrame({s: price_map[s] for s in available}).dropna(how="all")
+
         if prices_df.empty:
             raise ValueError("Insufficient price history.")
-        
+
         # Calculate baseline
         latest_prices = prices_df.iloc[-1]
         market_values = final_shares * latest_prices
         total_value = float(market_values.sum())
         weights = market_values / total_value
-        
-        daily_returns = prices_df.pct_change().dropna()
-        portfolio_returns = daily_returns.mul(weights, axis=1).sum(axis=1)
-        synthetic_index = (1.0 + portfolio_returns).cumprod()
-        
+
+        daily_returns = prices_df.pct_change()
+        portfolio_returns = (
+            daily_returns.mul(weights, axis=1).sum(axis=1, min_count=1).dropna()
+        )
+        base = pd.Series([1.0], index=[prices_df.index[0]])
+        synthetic_index = pd.concat([base, (1.0 + portfolio_returns).cumprod()])
+
         baseline = compute_metrics_from_price_series(
             synthetic_index,
             label="BASELINE",
             risk_free_rate=request.risk_free_rate,
         )
-        
+
         # Fetch ticker prices
         ticker_prices = fetch_close_prices_between(ticker, start=start, end=end)
         ticker_prices = ticker_prices.reindex(prices_df.index).ffill().dropna()
@@ -602,13 +636,20 @@ def testlab_test_ticker(request: SingleTickerTestRequest) -> dict[str, Any]:
         combined_prices = prices_df.copy()
         if ticker not in combined_prices.columns:
             combined_prices[ticker] = ticker_prices
-        combined_returns = combined_prices.pct_change().dropna()
-        
-        new_portfolio_returns = sum(
-            combined_returns[sym] * w for sym, w in new_weights.items()
-            if sym in combined_returns.columns
+        combined_returns = combined_prices.pct_change()
+
+        present_syms = [s for s in new_weights if s in combined_returns.columns]
+        total_w = sum(new_weights[s] for s in present_syms)
+        norm_weights = {s: new_weights[s] / total_w for s in present_syms} if total_w > 0 else {}
+
+        new_portfolio_returns = (
+            combined_returns[list(norm_weights.keys())]
+            .mul(pd.Series(norm_weights), axis=1)
+            .sum(axis=1, min_count=1)
+            .dropna()
         )
-        new_synthetic = (1.0 + new_portfolio_returns).cumprod()
+        base_new = pd.Series([1.0], index=[combined_prices.index[0]])
+        new_synthetic = pd.concat([base_new, (1.0 + new_portfolio_returns).cumprod()])
         
         new_metrics = compute_metrics_from_price_series(
             new_synthetic,
@@ -798,7 +839,7 @@ class SimulationRequest(BaseModel):
     portfolio_name: str = Field(default="YOUR PORTFOLIO")
     history_years: int = Field(default=5, ge=1, le=20)
     simulation_years: int = Field(default=5, ge=1, le=30)
-    num_simulations: int = Field(default=300, ge=10, le=1000)
+    num_simulations: int = Field(default=300, ge=1, le=100000)
     trading_days_per_year: int = Field(default=252)
 
 
@@ -812,9 +853,10 @@ def run_gbm_simulation(req: SimulationRequest) -> dict[str, Any]:
     import pandas as pd
     from datetime import timedelta, date
     
-    csv_path = DATA_DIR / req.csv_file
-    if not csv_path.exists():
-        raise HTTPException(status_code=404, detail=f"CSV file not found: {req.csv_file}")
+    try:
+        csv_path = _resolve_csv_path(req.csv_file)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
     
     # Load trades to get current holdings
     try:
@@ -865,54 +907,74 @@ def run_gbm_simulation(req: SimulationRequest) -> dict[str, Any]:
     # Normalize weights for valid tickers
     valid_weights = np.array(valid_weights)
     valid_weights = valid_weights / valid_weights.sum()
+
+    # Build the common date index from the LONGEST available series so a
+    # recently-listed holding does not collapse 5 years of history to its
+    # short listing window (the old intersection() approach caused this).
+    market_ticker = max(price_data.keys(), key=lambda t: len(price_data[t]))
+    common_index = price_data[market_ticker].index.sort_values()
+
+    if len(common_index) < 20:
+        raise HTTPException(status_code=400, detail="Insufficient price history")
+
+    # Build a DataFrame of per-ticker log returns aligned to the common calendar.
+    # Tickers that started recently will have NaN for pre-listing rows; those NaN
+    # values are excluded from the weighted sum via nansum so they don't drag
+    # down the effective history length.
+    # Build a (n_tickers × n_dates-1) matrix of raw log returns (NaN for pre-listing).
+    raw_log_return_rows: list[np.ndarray] = []
+    for ticker in valid_tickers:
+        prices_series = price_data[ticker].reindex(common_index).ffill()
+        log_r = np.diff(np.log(prices_series.values.astype(float)))
+        raw_log_return_rows.append(log_r)
+
+    raw_stacked = np.vstack(raw_log_return_rows)   # shape: (n_tickers, n_dates-1)
+    presence = ~np.isnan(raw_stacked)              # True where ticker has data
+
+    # Re-normalise weights per date so present tickers always sum to 1.0.
+    # Without this, a recently-listed ticker's missing rows cause the weighted
+    # sum to be < 1.0-scaled, understating drift and volatility for that period.
+    w_col = valid_weights[:, np.newaxis]            # (n_tickers, 1) for broadcasting
+    weight_present_sum = np.where(presence, w_col, 0.0).sum(axis=0)  # (n_dates-1,)
+    weight_present_sum = np.where(weight_present_sum > 0, weight_present_sum, np.nan)
+
+    weighted_returns_raw = (
+        np.nansum(raw_stacked * w_col, axis=0) / weight_present_sum
+    )
+    # Dates where ALL tickers are NaN yield np.nan in weighted_returns_raw.
+    weighted_returns = weighted_returns_raw[~np.isnan(weighted_returns_raw)]
+
+    if len(weighted_returns) < 20:
+        raise HTTPException(status_code=400, detail="Insufficient price history after alignment")
     
-    # Align all price series to common dates
-    common_index = None
-    for prices in price_data.values():
-        if common_index is None:
-            common_index = prices.index
-        else:
-            common_index = common_index.intersection(prices.index)
-    
-    if common_index is None or len(common_index) < 20:
-        raise HTTPException(status_code=400, detail="Insufficient overlapping price history")
-    
-    common_index = common_index.sort_values()
-    
-    # Compute weighted portfolio returns using current weights
-    # This assumes the portfolio maintains today's allocation over history (static weights)
-    weighted_returns = None
-    for i, ticker in enumerate(valid_tickers):
-        prices = price_data[ticker].reindex(common_index).ffill()
-        log_returns = np.diff(np.log(prices.values))
-        
-        if weighted_returns is None:
-            weighted_returns = valid_weights[i] * log_returns
-        else:
-            weighted_returns += valid_weights[i] * log_returns
-    
-    # Estimate GBM parameters from weighted portfolio returns
+    # Estimate GBM parameters from weighted portfolio log returns
     mu_daily = float(np.mean(weighted_returns))
-    sigma_daily = float(np.std(weighted_returns))
-    
-    # Annualize
-    mu_annual = mu_daily * req.trading_days_per_year
+    sigma_daily = float(np.std(weighted_returns, ddof=1))
+
+    # Annualize volatility using square-root-of-time rule.
     sigma_annual = sigma_daily * np.sqrt(req.trading_days_per_year)
-    
+
+    # The expected geometric growth rate shown to the user must include the Ito correction
+    # (mu - 0.5*sigma^2). Without it, the displayed "expected return" is the arithmetic
+    # log-drift, which is always higher than the actual compounded growth the paths will
+    # average. For a portfolio with 40% annual vol, the gap is 8 percentage points.
+    geometric_drift_annual = (mu_daily - 0.5 * sigma_daily**2) * req.trading_days_per_year
+
     # Simulation parameters
     num_steps = req.simulation_years * req.trading_days_per_year
-    
-    # Run simulations
-    np.random.seed(42)  # For reproducibility
+
+    # Per-request RNG instance — thread-safe and statistically superior to the legacy
+    # np.random global state (which is shared across threads and not thread-safe).
+    rng = np.random.default_rng()
     simulations = []
-    
+
     for _ in range(req.num_simulations):
         prices = [current_value]
         price = current_value
         for _ in range(num_steps):
             # GBM: dS = S * (mu*dt + sigma*dW)
             # Using log form: S(t+dt) = S(t) * exp((mu - 0.5*sigma^2)*dt + sigma*sqrt(dt)*Z)
-            z = np.random.standard_normal()
+            z = rng.standard_normal()
             price = price * np.exp((mu_daily - 0.5 * sigma_daily**2) + sigma_daily * z)
             prices.append(price)
         simulations.append(prices)
@@ -921,7 +983,6 @@ def run_gbm_simulation(req: SimulationRequest) -> dict[str, Any]:
     
     # Compute statistics
     mean_path = simulations.mean(axis=0)
-    std_path = simulations.std(axis=0)
     percentile_5 = np.percentile(simulations, 5, axis=0)
     percentile_95 = np.percentile(simulations, 95, axis=0)
     
@@ -953,13 +1014,113 @@ def run_gbm_simulation(req: SimulationRequest) -> dict[str, Any]:
         "parameters": {
             "mu_daily": mu_daily,
             "sigma_daily": sigma_daily,
-            "mu_annual": mu_annual,
+            "mu_annual": geometric_drift_annual,
             "sigma_annual": sigma_annual,
             "history_days": len(weighted_returns),
             "num_holdings": len(valid_tickers),
         },
         "holdings": holdings_summary,
         "current_value": current_value,
+        "simulation": {
+            "dates": [sim_dates[i] for i in sampled_indices],
+            "mean": mean_path[sampled_indices].tolist(),
+            "upper_95": percentile_95[sampled_indices].tolist(),
+            "lower_95": percentile_5[sampled_indices].tolist(),
+            "paths": display_paths,
+        },
+        "final_values": {
+            "mean": float(mean_path[-1]),
+            "median": float(np.median(simulations[:, -1])),
+            "percentile_5": float(percentile_5[-1]),
+            "percentile_95": float(percentile_95[-1]),
+            "min": float(simulations[:, -1].min()),
+            "max": float(simulations[:, -1].max()),
+        },
+    }
+
+
+class TickerSimulationRequest(BaseModel):
+    ticker: str
+    history_years: int = Field(default=5, ge=1, le=20)
+    simulation_years: int = Field(default=5, ge=1, le=30)
+    num_simulations: int = Field(default=300, ge=1, le=100000)
+    starting_value: float = Field(default=10000.0, gt=0)
+    trading_days_per_year: int = Field(default=252)
+
+
+@app.post("/api/simulate/ticker")
+def simulate_ticker(req: TickerSimulationRequest) -> dict[str, Any]:
+    """Run GBM simulation for a single ticker symbol."""
+    import numpy as np
+    import yfinance as yf
+    from datetime import timedelta, date
+
+    ticker = req.ticker.strip().upper()
+    if not ticker:
+        raise HTTPException(status_code=400, detail="Ticker symbol is required")
+
+    try:
+        data = yf.download(ticker, period=f"{req.history_years}y", auto_adjust=True, progress=False)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Could not fetch data for {ticker}: {exc}") from exc
+
+    if data is None or data.empty:
+        raise HTTPException(status_code=404, detail=f"No price data found for ticker '{ticker}'")
+
+    close = data["Close"].squeeze()
+    if isinstance(close, pd.DataFrame):
+        close = close.iloc[:, 0]
+    close = close.dropna()
+
+    if len(close) < 30:
+        raise HTTPException(status_code=400, detail=f"Not enough history for '{ticker}' (need at least 30 trading days)")
+
+    daily_returns = close.pct_change().dropna()
+    mu_daily = float(daily_returns.mean())
+    sigma_daily = float(daily_returns.std(ddof=1))
+    sigma_annual = sigma_daily * np.sqrt(req.trading_days_per_year)
+    geometric_drift_annual = (mu_daily - 0.5 * sigma_daily ** 2) * req.trading_days_per_year
+
+    num_steps = req.simulation_years * req.trading_days_per_year
+    rng = np.random.default_rng()
+    simulations = []
+
+    for _ in range(req.num_simulations):
+        prices = [req.starting_value]
+        price = req.starting_value
+        for _ in range(num_steps):
+            z = rng.standard_normal()
+            price = price * np.exp((mu_daily - 0.5 * sigma_daily ** 2) + sigma_daily * z)
+            prices.append(price)
+        simulations.append(prices)
+
+    simulations = np.array(simulations)
+    mean_path = simulations.mean(axis=0)
+    percentile_5 = np.percentile(simulations, 5, axis=0)
+    percentile_95 = np.percentile(simulations, 95, axis=0)
+
+    from datetime import date
+    start_date = date.today()
+    sim_dates = []
+    for i in range(num_steps + 1):
+        day_offset = int(i * 365 / req.trading_days_per_year)
+        sim_dates.append((start_date + timedelta(days=day_offset)).isoformat())
+
+    step = 5
+    sampled_indices = list(range(0, num_steps + 1, step))
+    num_display_paths = min(50, req.num_simulations)
+    display_paths = simulations[:num_display_paths, sampled_indices].tolist()
+
+    return {
+        "ticker": ticker,
+        "parameters": {
+            "mu_daily": mu_daily,
+            "sigma_daily": sigma_daily,
+            "mu_annual": geometric_drift_annual,
+            "sigma_annual": sigma_annual,
+            "history_days": len(daily_returns),
+        },
+        "starting_value": req.starting_value,
         "simulation": {
             "dates": [sim_dates[i] for i in sampled_indices],
             "mean": mean_path[sampled_indices].tolist(),

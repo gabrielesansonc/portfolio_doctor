@@ -175,13 +175,19 @@ def daily_returns_from_prices(prices: pd.Series) -> pd.Series:
 
 # ===== Additional Risk Metrics =====
 
-def compute_downside_deviation(daily_returns: pd.Series) -> float:
-    """Compute annualized downside deviation (volatility of negative returns only)."""
-    downside_returns = daily_returns[daily_returns < 0]
-    if len(downside_returns) == 0:
+def compute_downside_deviation(daily_returns: pd.Series, mar_annual: float = 0.0) -> float:
+    """Compute annualized downside deviation relative to a Minimum Acceptable Return (MAR).
+
+    Uses the RMS formula: sqrt(mean(min(r_t - mar_daily, 0)^2)) * sqrt(252).
+    This is the standard MAR-based downside deviation used in the Sortino ratio.
+    Setting mar_annual to the risk-free rate correctly penalises days that earned
+    less than a risk-free savings account.
+    """
+    mar_daily = (1.0 + mar_annual) ** (1.0 / TRADING_DAYS_PER_YEAR) - 1.0
+    shortfall = np.minimum(daily_returns.values - mar_daily, 0.0)
+    if np.all(shortfall == 0.0):
         return 0.0
-    downside_std = float(downside_returns.std(ddof=1))
-    return downside_std * np.sqrt(TRADING_DAYS_PER_YEAR)
+    return float(np.sqrt(np.mean(shortfall ** 2)) * np.sqrt(TRADING_DAYS_PER_YEAR))
 
 
 def compute_sortino_ratio(
@@ -189,12 +195,12 @@ def compute_sortino_ratio(
     annual_return: float,
     risk_free_rate: float = 0.0,
 ) -> float:
-    """Compute Sortino ratio using downside deviation only."""
-    downside_deviation = compute_downside_deviation(daily_returns)
-    
+    """Compute Sortino ratio using MAR-based downside deviation."""
+    downside_deviation = compute_downside_deviation(daily_returns, mar_annual=risk_free_rate)
+
     if downside_deviation == 0:
         return np.nan
-    
+
     return (annual_return - risk_free_rate) / downside_deviation
 
 
@@ -262,10 +268,18 @@ def compute_metrics_from_price_series(
 ) -> AssetMetrics:
     """Compute annualized return, volatility, Sharpe, Sortino, and risk metrics from a price/value series."""
     daily_returns = daily_returns_from_prices(prices)
-    mean_daily_return = float(daily_returns.mean())
     daily_volatility = float(daily_returns.std(ddof=1))
 
-    annual_return = (1 + mean_daily_return) ** TRADING_DAYS_PER_YEAR - 1
+    # Geometric annualized return: derived from actual start/end prices.
+    # Using the arithmetic mean of daily returns and compounding it would overstate
+    # returns due to Jensen's inequality — especially for volatile assets.
+    # n_periods = intervals between observations (not the count of observations itself).
+    if prices.iloc[0] <= 0:
+        raise ValueError(f"Price series for '{label}' has a non-positive starting value.")
+    n_periods = len(prices) - 1
+    if n_periods < 1:
+        raise ValueError(f"Price series for '{label}' must have at least 2 data points.")
+    annual_return = float((prices.iloc[-1] / prices.iloc[0]) ** (TRADING_DAYS_PER_YEAR / n_periods) - 1)
     annual_volatility = daily_volatility * np.sqrt(TRADING_DAYS_PER_YEAR)
 
     if annual_volatility == 0:
@@ -277,7 +291,9 @@ def compute_metrics_from_price_series(
     sortino_ratio = compute_sortino_ratio(daily_returns, annual_return, risk_free_rate)
     max_drawdown = compute_max_drawdown(prices)
     var_95 = compute_var_95(daily_returns)
-    downside_dev = compute_downside_deviation(daily_returns)
+    # Pass the same risk_free_rate as MAR so the stored downside_deviation is
+    # consistent with the Sortino ratio denominator shown to the user.
+    downside_dev = compute_downside_deviation(daily_returns, mar_annual=risk_free_rate)
     
     # Beta requires market returns
     if market_returns is not None and not market_returns.empty:
@@ -353,9 +369,11 @@ def compute_flow_adjusted_metrics(
     try:
         annual_return = float(_xirr(cashflow_points))
     except Exception:
-        # Fallback to annualized geometric return from flow-adjusted daily returns.
-        mean_daily = float(daily_returns.mean())
-        annual_return = float((1.0 + mean_daily) ** TRADING_DAYS_PER_YEAR - 1.0)
+        # Fallback: annualise using the geometric (log) mean — not the arithmetic mean.
+        # Compounding the arithmetic mean overstates return by ~0.5*sigma^2*T (Jensen's
+        # inequality); the log-mean approach is exact for the compounded growth rate.
+        log_mean_daily = float(np.log(1.0 + daily_returns).mean())
+        annual_return = float(np.exp(log_mean_daily * TRADING_DAYS_PER_YEAR) - 1.0)
 
     if annual_volatility == 0:
         sharpe_ratio = np.nan
@@ -483,8 +501,10 @@ def compute_final_holdings_portfolio_metrics(
         raise ValueError("Could not fetch prices for any final holdings symbols.")
 
     final_shares = final_shares.loc[available_symbols]
+    # dropna(how="all") instead of dropna(how="any") so a recently-listed holding
+    # does not collapse 5 years of history down to its short listing window.
     prices_df = pd.DataFrame({s: price_map[s] for s in available_symbols})
-    prices_df = prices_df.dropna(how="any")
+    prices_df = prices_df.dropna(how="all")
     if prices_df.empty:
         raise ValueError("Insufficient overlapping price history for final holdings.")
 
@@ -496,12 +516,15 @@ def compute_final_holdings_portfolio_metrics(
 
     weights = market_values / total_value
 
-    daily_returns = prices_df.pct_change().dropna()
-    if daily_returns.empty:
+    daily_returns = prices_df.pct_change()
+    portfolio_daily_returns = (
+        daily_returns.mul(weights, axis=1).sum(axis=1, min_count=1).dropna()
+    )
+    if portfolio_daily_returns.empty:
         raise ValueError("Not enough return history for final holdings portfolio.")
 
-    portfolio_daily_returns = daily_returns.mul(weights, axis=1).sum(axis=1)
-    synthetic_index = (1.0 + portfolio_daily_returns).cumprod()
+    base = pd.Series([1.0], index=[prices_df.index[0]])
+    synthetic_index = pd.concat([base, (1.0 + portfolio_daily_returns).cumprod()])
 
     metrics = compute_metrics_from_price_series(
         synthetic_index,
@@ -824,42 +847,86 @@ def analyze_robinhood_portfolio(
     # Always include SPY for beta calculation
     if "SPY" not in all_tickers:
         all_tickers.append("SPY")
-    
+
+    # Bulk download: one HTTP round-trip for all tickers instead of N sequential calls.
+    # For a portfolio with 15 holdings + benchmarks this reduces network time from
+    # ~15–30 s (sequential) to ~2–4 s (single batched request).
+    try:
+        bulk = yf.download(
+            all_tickers,
+            start=historical_start.strftime("%Y-%m-%d"),
+            end=(end_date + pd.Timedelta(days=1)).strftime("%Y-%m-%d"),
+            interval="1d",
+            auto_adjust=True,
+            progress=False,
+            group_by="ticker",
+            threads=True,
+        )
+    except Exception as exc:
+        raise ValueError(f"Failed to fetch market data: {exc}") from exc
+
     prices: dict[str, pd.Series] = {}
     for ticker in all_tickers:
-        prices[ticker] = fetch_close_prices_between(ticker, start=historical_start, end=end_date)
+        try:
+            if len(all_tickers) == 1:
+                raw = bulk["Close"]
+            elif isinstance(bulk.columns, pd.MultiIndex):
+                # group_by="ticker" produces (ticker, field) MultiIndex
+                raw = bulk[ticker]["Close"] if ticker in bulk.columns.get_level_values(0) else None
+            else:
+                raw = bulk["Close"][ticker] if ticker in bulk["Close"].columns else None
 
-    common_index = None
-    for series in prices.values():
-        common_index = series.index if common_index is None else common_index.intersection(series.index)
-    if common_index is None or common_index.empty:
-        raise ValueError("Could not find overlapping price dates across tickers.")
+            if raw is None or (hasattr(raw, "empty") and raw.empty):
+                continue
+            series = _to_1d_series(raw, field_name="Close price", ticker=ticker)
+            prices[ticker] = _as_naive_daily_index(series)
+        except Exception:
+            continue
 
-    common_index = common_index.sort_values()
-    for ticker in prices:
-        prices[ticker] = prices[ticker].reindex(common_index).ffill().dropna()
+    if not prices:
+        raise ValueError("Could not fetch price data for any tickers.")
+
+    # Use a stable market trading calendar rather than intersecting every holding.
+    # Otherwise one recently listed ticker can collapse the full portfolio history.
+    market_index = prices.get("SPY")
+    if market_index is None and benchmarks:
+        market_index = prices.get(benchmarks[0])
+    if market_index is None and prices:
+        market_index = next(iter(prices.values()))
+    if market_index is None or market_index.empty:
+        raise ValueError("Could not determine market price calendar.")
+
+    common_index = market_index.index.sort_values()
+    for ticker, series in list(prices.items()):
+        prices[ticker] = series.reindex(common_index).ffill()
 
     # Compute SPY market returns for beta calculation
     spy_prices = prices.get("SPY")
     market_returns = daily_returns_from_prices(spy_prices) if spy_prices is not None else None
 
+    # Filter to symbols and benchmarks that were successfully fetched.
+    # Delisted tickers, recent IPOs with no history, or per-ticker network failures
+    # will be absent from prices — exclude them rather than crashing on KeyError.
+    available_symbols = [s for s in symbols if s in prices]
+    available_benchmarks = [b for b in benchmarks if b in prices]
+
     # Rebuild holdings through signed quantities at market dates.
     qty_events = trades.groupby(["date", "symbol"], as_index=False)["signed_quantity"].sum()
-    holdings = pd.DataFrame(0.0, index=common_index, columns=symbols)
-    for symbol in symbols:
+    holdings = pd.DataFrame(0.0, index=common_index, columns=available_symbols)
+    for symbol in available_symbols:
         symbol_events = qty_events[qty_events["symbol"] == symbol]
         by_date = dict(zip(symbol_events["date"], symbol_events["signed_quantity"]))
         aligned = _aggregate_on_market_dates(by_date, common_index)
         holdings[symbol] = aligned.cumsum()
 
-    asset_prices = pd.DataFrame({symbol: prices[symbol] for symbol in symbols}, index=common_index)
-    portfolio_value = (holdings * asset_prices).sum(axis=1)
+    asset_prices = pd.DataFrame({symbol: prices[symbol] for symbol in available_symbols}, index=common_index)
+    portfolio_value = (holdings * asset_prices).fillna(0.0).sum(axis=1)
 
     flow_events = trades.groupby("date", as_index=False)["cash_flow"].sum()
     cash_flows = _aggregate_on_market_dates(dict(zip(flow_events["date"], flow_events["cash_flow"])), common_index)
 
     value_history = pd.DataFrame({portfolio_name: portfolio_value}, index=common_index)
-    for bench in benchmarks:
+    for bench in available_benchmarks:
         value_history[bench] = _simulate_benchmark_from_flows(cash_flows, prices[bench])
 
     # Keep selected analysis window: [today - years, today] where data exists.
